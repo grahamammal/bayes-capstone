@@ -1,0 +1,114 @@
+---
+title: "capstone"
+author: "Ellen Graham"
+date: "4/20/2020"
+output: html_document
+---
+
+```{r}
+library(purrr)
+library(BMA)
+library(rstanarm)
+library(loo)
+library(dplyr)
+```
+
+
+```{r}
+h <- 5
+j <- 1:15
+betas <- ((abs(j-4) < h)*(h-abs(j-4)))^2 + ((abs(j-8) < h)*(h-abs(j-8)))^2 + ((abs(j-12) < h)*(h-abs(j-12)))^2
+
+n <- 100
+
+X <- data.frame(matrix(rnorm(15*n, 5, 1), ncol = 15))
+
+gamma_numerator <- map2(X, betas, function(x, beta) {(x*beta)}) %>% 
+  pmap_dbl(sum) %>% 
+  var()
+
+gamma <- 2/sqrt(gamma_numerator)
+
+betas_final <- gamma*betas
+
+y <- map2(X, betas_final, `*`) %>% 
+  pmap_dbl(sum)
+
+
+test_data <- X %>% 
+  mutate(y = y)
+
+
+X_oos <- data.frame(matrix(rnorm(15*200, 5, 1), ncol = 15))
+
+y_oos <- map2(X_oos, betas_final, `*`) %>% 
+  pmap_dbl(sum)
+
+
+test_data_oos <- X_oos %>% 
+  mutate(y = y_oos)
+```
+
+```{r}
+model<- bic.glm(x = X, y = y, glm.family = "gaussian")
+summary(model)
+```
+
+Do it the stan way
+
+```{r}
+fit0 <- stan_glm(y ~ 1, data = test_data, seed = 451)
+fit1 <- update(fit0, formula = y ~ X1)
+fit2 <- update(fit0, formula = y ~ X2)
+fit3 <- update(fit0, formula = y ~ X3)
+```
+
+```{r}
+waic0 <- waic(fit0)
+waic1 <- waic(fit1)
+waic2 <- waic(fit2)
+waic3 <- waic(fit3)
+```
+
+```{r}
+waics <- c(
+  waic0$estimates["elpd_waic", 1],
+  waic1$estimates["elpd_waic", 1],
+  waic2$estimates["elpd_waic", 1],
+  waic3$estimates["elpd_waic", 1]
+)
+```
+
+```{r}
+loo0 <- loo(fit0)
+loo1 <- loo(fit1)
+loo2 <- loo(fit2)
+loo3 <- loo(fit3)
+lpd_point <- cbind(
+  loo0$pointwise[,"elpd_loo"], 
+  loo1$pointwise[,"elpd_loo"],
+  loo2$pointwise[,"elpd_loo"], 
+  loo3$pointwise[,"elpd_loo"]
+)
+```
+
+```{r}
+waic_wts <- exp(waics) / sum(exp(waics))
+pbma_wts <- pseudobma_weights(lpd_point, BB=FALSE)
+pbma_BB_wts <- pseudobma_weights(lpd_point) # default is BB=TRUE
+stacking_wts <- stacking_weights(lpd_point)
+round(cbind(waic_wts, pbma_wts, pbma_BB_wts, stacking_wts), 2)
+```
+
+```{r}
+fit_list <- stanreg_list(fit0, fit1, fit2, fit3)
+```
+
+```{r}
+fit0$stanfit
+```
+
+```{r}
+
+```
+

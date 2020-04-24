@@ -1,0 +1,215 @@
+---
+title: "bma-example"
+author: "Ellen Graham"
+date: "4/23/2020"
+output: html_document
+---
+
+
+```{r}
+# Load packages
+library(ggplot2)
+library(dplyr)
+library(janitor)
+library(reshape2)
+library(tidyr)
+
+library(rstan)
+library(rstanarm)
+library(bayesplot)
+library(loo)
+```
+
+```{r}
+# Load data
+bb <- read.csv("https://www.macalester.edu/~ajohns24/data/BattingAverage1970.csv")
+
+# Define 1969 batting averages
+bb <- bb %>% 
+  mutate(BA_1969 = c(0.345, 0.308, 0.296, 0.270, 0.232, 
+    0.254, 0.273, 0.130, 0.289, 0.235, 0.297, 0.236, 
+    0.253, 0.286, 0.293, 0.260, 0.256, 0.225))
+```
+
+
+Fit the models
+```{r}
+# Complete Pooling
+set.seed(454)
+model_1 <- stan_glm(
+  cbind(Hits, AtBats - Hits) ~ 1, 
+  data = bb, family = binomial,
+  chains = 4, iter = 2*5000, refresh = 0)
+
+
+# No Pooling
+model_2 <- stan_glm(
+  cbind(Hits, AtBats - Hits) ~ 0 + LastName, 
+  data = bb, family = binomial,
+  chains = 4, iter = 2*5000, refresh = 0)
+
+# Exchangeable Heirarchical 
+model_3 <- stan_glmer(
+  cbind(Hits, AtBats - Hits) ~ (1 | LastName),
+  data = bb, family = binomial,
+  chains = 4, iter = 2*5000, refresh = 0)
+
+
+# UNexchangeable hierarchical model
+model_4 <- stan_glmer(
+  cbind(Hits, AtBats - Hits) ~ BA_1969 + (1 | LastName),
+  data = bb, family = binomial,
+  chains = 4, iter = 2*5000, refresh = 0)
+```
+
+```{r}
+all_models <- stanreg_list(model_1, model_2, model_3, model_4)
+```
+
+
+```{r}
+loo_model_weights(all_models, method = "stacking")
+```
+
+```{r}
+loo(model_1)
+loo(model_3)
+loo(model_4)
+```
+
+Working with GLM
+
+```{r}
+library(rattle)
+data(weatherAUS)
+
+# Take a sub-sample of the data
+set.seed(84735)
+weather <- weatherAUS %>% 
+  filter(Location %in% c("Wollongong", "Hobart", "Uluru")) %>% 
+  mutate(Location = droplevels(Location)) %>% 
+  group_by(Location) %>% 
+  sample_n(100) %>% 
+  ungroup() 
+names(weather) <- tolower(names(weather))
+
+model_data <- weather %>% 
+  dplyr::select(temp9am, temp3pm, location) %>% 
+  na.omit()
+```
+
+
+```{r}
+set.seed(454)
+model_1_glm <- stan_glm(
+  temp3pm ~ temp9am, data = model_data, 
+  family = gaussian, 
+  chains = 4, iter = 2*5000)
+
+model_2_glm <- stan_glm(
+  temp3pm ~ temp9am + location, data = model_data, 
+  family = gaussian, 
+  chains = 4, iter = 2*5000)
+```
+
+
+```{r}
+loo(model_1_glm)
+loo(model_2_glm)
+
+both_models <- stanreg_list(model_1_glm, model_2_glm)
+loo_model_weights(both_models, method = "pseudobma")
+```
+
+# Try it with the heirarchical models
+
+```{r}
+sleep <- read.csv("https://www.macalester.edu/~ajohns24/Data/SleepStudy.csv")
+
+# 180 total reaction time observations
+nrow(sleep)
+## [1] 180
+```
+
+```{r}
+set.seed(454)
+
+
+heir_model_1 <- stan_glm(Reaction ~ 1,
+         data = sleep,
+         family = gaussian, 
+         chains = 4, iter = 2*5000)
+
+heir_model_2  <- stan_glmer(
+  Reaction ~ (1 | Subject),
+  data = sleep, family = gaussian,
+  chains = 4, iter = 2*5000)
+
+heir_model_3 <- stan_glmer(
+  Reaction ~ Days + (Days | Subject),
+  data = sleep, family = gaussian,
+  chains = 4, iter = 2*5000, refresh = 0)
+
+```
+
+```{r}
+model_list <- stanreg_list(heir_model_1, heir_model_2, heir_model_3)
+
+
+loo_1 <- loo(heir_model_1)
+loo_2 <- loo(heir_model_2)
+loo_3 <- loo(heir_model_3, k_threshold = 0.7)
+
+loo_model_weights(model_list, method = "pseudobma")
+```
+
+```{r}
+lpd_point <- cbind(
+  loo_1$pointwise[,"elpd_loo"], 
+  loo_2$pointwise[,"elpd_loo"],
+  loo_3$pointwise[,"elpd_loo"]
+)
+```
+
+```{r}
+pseudobma_weights(lpd_point, BB = TRUE)
+```
+
+
+```{r}
+candy <- fivethirtyeight::candy_rankings
+
+
+head(candy)
+```
+
+```{r}
+set.seed(454)
+
+candy_1 <- stan_glm(winpercent ~ sugarpercent, 
+                data = candy,
+                family = gaussian, 
+                chains = 4, iter = 2*5000)
+
+candy_2 <- stan_glm(winpercent ~ sugarpercent + pricepercent, 
+                data = candy,
+                family = gaussian, 
+                chains = 4, iter = 2*5000)
+
+candy_3 <- stan_glm(winpercent ~ chocolate + fruity + caramel + peanutyalmondy + nougat + crispedricewafer + hard + bar + pluribus, 
+                data = candy,
+                family = gaussian, 
+                chains = 4, iter = 2*5000)
+
+candy_4 <- stan_glm(winpercent ~ chocolate + fruity + caramel + peanutyalmondy + nougat + crispedricewafer + hard + bar + pluribus + sugarpercent + pricepercent, 
+                data = candy,
+                family = gaussian, 
+                chains = 4, iter = 2*5000)
+```
+
+```{r}
+candy_models <- stanreg_list(candy_1, candy_2, candy_3, candy_4)
+
+loo_model_weights(candy_models, method = "pseudobma")
+```
+
