@@ -1,9 +1,32 @@
 ---
-title: "bma-example"
-author: "Ellen Graham"
+title: "Checkpoint 3"
+author: "Ellen Graham, Esther Swehla, Josh Upadhyay"
 date: "4/23/2020"
-output: html_document
+output: 
+  html_document:
+    toc: true
+    toc_float: true
 ---
+
+# Methodology Introduction
+
+Model specification is an element of statistics whose importance is often glossed over. The choice of model can hugely impact the results, and classical methods offer limited guidance on the best process for accounting for the uncertainty this creates. In class we have most recently discussed the Bayesian alternatives to traditional frequentist methods like linear and logistic regression. While useful, our choice is inherently limited to their baked-in assumptions. These models are also  susceptible to unstructured searches and checks for the best model specification can lead to incorrect inferences, fragile reported findings, and publication bias [@Fragoso]. Bayesian Model Averaging (BMA) offers an alternative practice that helps ensure findings are robust to a variety of model specifications. At its simplest level, BMA assigns priors to potential model specifications and then calculates posterior distributions for the model itself, in addition to the coefficients within the specification. This is thus an extension of Bayesian methodology that focuses solely on coefficient estimation. 
+Let us begin by considering a matrix $X$ of all the $n \times p$ potential independent variables to predict a response variable $Y$. A standard linear analysis would assume $Y = X \beta + \epsilon$, where $\beta$ is a coefficient matrix and $\epsilon$ ~ $N(0, \sigma^2)$. In many cases, we are still left with ambiguity about which of the $q=2^p$ model specifications from the model space ${M_1, M_2, ... M_q}$ is best. BMA incorporates this uncertainty into the process rather than ignoring it and claiming that the final model is the only option. This leads to greater flexibility in the inferences of the end results. 
+We can now assign a prior probability to each of the model specifications $M_k$, as well as the model parameters ($\beta, \sigma^2$). We assume $M_k$ ~ $\pi(M_k)$ and $\sigma^2 | M_k$ ~ $\pi(\sigma^2|M_k)$, $\beta_{\omega} |\sigma^2, M_k$ ~ $\pi(\beta_{\omega} |\sigma^2, M_k )$. In this last assumption, $\Omega$ represents a vector ${\omega_1, \omega_2, ... \omega_p}$ that is populated with zeros and ones indicating the exclusion or inclusion of variables in model $M_k$. 
+If we assume that $Y|\beta_{\omega}, \sigma^2, M_k$ ~ $N(X_{\omega}\beta_{\omega}, \sigma^2)$ then we know that the marginal distribution of the data under model $M_k$ follows $p(Y|M_k) = \int \int p(Y|\beta_{\omega}, \sigma^2, M_k) \pi(\beta_{\omega}|\sigma^2, M_k) \pi(\sigma^2|M_k) d\beta_{\omega} d\sigma^2$. 
+
+Then, the posterior probability of model specification $M_k$  is $p(M_k | Y) = \frac{L(M_k | Y) \pi(M_k)}{\sum_{k=0}^q p(Y|M_k)\pi(M_k)}$. 
+
+
+Given the additional layer of model specification, model parameters are also thus calculated slightly differently: 
+
+To summarize the above, just as we have seen with hierarchical models, we are simply adding an additional layer of modelling – this time, modelling our prior belief in a model’s ability to accurately describe the data.
+
+(BMA also appears to have a means to combine models together, through the calculation of the marginal posterior distribution of ∆, but I’m still not clear on what a “quantity in all models” like covariate or future observation is, exactly - Josh)
+
+# Data + Example Analysis
+
+For examples, we'll be using the sleep study example from class, the weather example from class, as well as the fivethirtyeight candy survey
 
 
 ```{r}
@@ -20,64 +43,70 @@ library(bayesplot)
 library(loo)
 ```
 
-```{r}
-# Load data
-bb <- read.csv("https://www.macalester.edu/~ajohns24/data/BattingAverage1970.csv")
+## Sleep Study
 
-# Define 1969 batting averages
-bb <- bb %>% 
-  mutate(BA_1969 = c(0.345, 0.308, 0.296, 0.270, 0.232, 
-    0.254, 0.273, 0.130, 0.289, 0.235, 0.297, 0.236, 
-    0.253, 0.286, 0.293, 0.260, 0.256, 0.225))
+
+```{r}
+sleep <- read.csv("https://www.macalester.edu/~ajohns24/Data/SleepStudy.csv")
+
+dim(sleep)
+names(sleep)
+head(sleep)
+summary(sleep)
 ```
 
+Data were collected as part of a study investigating the impact of sleep deprivation on people. We'll be using all of these in the models.  
 
-Fit the models
+| variable    | meaning           |
+| ------------- |-------------|
+| `Reaction`      | reaction time in ms |
+| `Days`      | days since last slept      |
+| `Subject` | subject id      |
+
+
 ```{r}
-# Complete Pooling
 set.seed(454)
-model_1 <- stan_glm(
-  cbind(Hits, AtBats - Hits) ~ 1, 
-  data = bb, family = binomial,
+
+
+heir_model_1 <- stan_glm(Reaction ~ 1,
+         data = sleep,
+         family = gaussian, 
+         chains = 4, iter = 2*5000)
+
+heir_model_2  <- stan_glmer(
+  Reaction ~ (1 | Subject),
+  data = sleep, family = gaussian,
+  chains = 4, iter = 2*5000)
+
+heir_model_3 <- stan_glmer(
+  Reaction ~ Days + (Days | Subject),
+  data = sleep, family = gaussian,
   chains = 4, iter = 2*5000, refresh = 0)
 
-
-# No Pooling
-model_2 <- stan_glm(
-  cbind(Hits, AtBats - Hits) ~ 0 + LastName, 
-  data = bb, family = binomial,
-  chains = 4, iter = 2*5000, refresh = 0)
-
-# Exchangeable Heirarchical 
-model_3 <- stan_glmer(
-  cbind(Hits, AtBats - Hits) ~ (1 | LastName),
-  data = bb, family = binomial,
-  chains = 4, iter = 2*5000, refresh = 0)
-
-
-# UNexchangeable hierarchical model
-model_4 <- stan_glmer(
-  cbind(Hits, AtBats - Hits) ~ BA_1969 + (1 | LastName),
-  data = bb, family = binomial,
-  chains = 4, iter = 2*5000, refresh = 0)
 ```
 
 ```{r}
-all_models <- stanreg_list(model_1, model_2, model_3, model_4)
-```
+loo_1 <- loo(heir_model_1)
+loo_2 <- loo(heir_model_2)
+loo_3 <- loo(heir_model_3, k_threshold = 0.7)
 
-
-```{r}
-loo_model_weights(all_models, method = "stacking")
 ```
 
 ```{r}
-loo(model_1)
-loo(model_3)
-loo(model_4)
+lpd_point <- cbind(
+  loo_1$pointwise[,"elpd_loo"], 
+  loo_2$pointwise[,"elpd_loo"],
+  loo_3$pointwise[,"elpd_loo"]
+)
 ```
 
-Working with GLM
+```{r}
+pseudobma_weights(lpd_point, BB = TRUE)
+```
+
+
+## Australian Weather Data
+
 
 ```{r}
 library(rattle)
@@ -96,7 +125,20 @@ names(weather) <- tolower(names(weather))
 model_data <- weather %>% 
   dplyr::select(temp9am, temp3pm, location) %>% 
   na.omit()
+
+dim(model_data)
+names(model_data)
+head(model_data)
+summary(model_data)
 ```
+
+Data were collected by weather stations in Australia. We'll be using all these variables. 
+
+| variable    | meaning           |
+| ------------- |-------------|
+| `temp9am`      | temperature at 9am |
+| `temp3pm`      | temperature at 3pm      |
+| `location` | location of data collection      |
 
 
 ```{r}
@@ -121,66 +163,19 @@ both_models <- stanreg_list(model_1_glm, model_2_glm)
 loo_model_weights(both_models, method = "pseudobma")
 ```
 
-# Try it with the heirarchical models
 
-```{r}
-sleep <- read.csv("https://www.macalester.edu/~ajohns24/Data/SleepStudy.csv")
+## Candy data
 
-# 180 total reaction time observations
-nrow(sleep)
-## [1] 180
-```
+Data were collected through a fivethirtyeight survey where users were asked to decide which candy of two shown they prefered. We'll be using all the variables in the demonstration. The article can be found at https://fivethirtyeight.com/videos/the-ultimate-halloween-candy-power-ranking/ and variable explanations can be found at https://github.com/fivethirtyeight/data/tree/master/candy-power-ranking
 
-```{r}
-set.seed(454)
-
-
-heir_model_1 <- stan_glm(Reaction ~ 1,
-         data = sleep,
-         family = gaussian, 
-         chains = 4, iter = 2*5000)
-
-heir_model_2  <- stan_glmer(
-  Reaction ~ (1 | Subject),
-  data = sleep, family = gaussian,
-  chains = 4, iter = 2*5000)
-
-heir_model_3 <- stan_glmer(
-  Reaction ~ Days + (Days | Subject),
-  data = sleep, family = gaussian,
-  chains = 4, iter = 2*5000, refresh = 0)
-
-```
-
-```{r}
-model_list <- stanreg_list(heir_model_1, heir_model_2, heir_model_3)
-
-
-loo_1 <- loo(heir_model_1)
-loo_2 <- loo(heir_model_2)
-loo_3 <- loo(heir_model_3, k_threshold = 0.7)
-
-loo_model_weights(model_list, method = "pseudobma")
-```
-
-```{r}
-lpd_point <- cbind(
-  loo_1$pointwise[,"elpd_loo"], 
-  loo_2$pointwise[,"elpd_loo"],
-  loo_3$pointwise[,"elpd_loo"]
-)
-```
-
-```{r}
-pseudobma_weights(lpd_point, BB = TRUE)
-```
 
 
 ```{r}
 candy <- fivethirtyeight::candy_rankings
-
-
+dim(candy)
+names(candy)
 head(candy)
+summary(candy)
 ```
 
 ```{r}
@@ -213,3 +208,11 @@ candy_models <- stanreg_list(candy_1, candy_2, candy_3, candy_4)
 loo_model_weights(candy_models, method = "pseudobma")
 ```
 
+
+# Next Steps
+
+Expand on the theory by adding more details and content. 
+
+First planning to have static graphs – showcase various models, and show the process of assigning prior distributions to each one
+
+Then graphs showing posterior dist calculations of each one, overlaying them, and comparisons of posterior graphs for different models for analysis. 
