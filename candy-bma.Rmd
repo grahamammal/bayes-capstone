@@ -1,0 +1,141 @@
+---
+title: "Candy Models"
+author: "Ellen Graham"
+date: "4/27/2020"
+output: html_document
+---
+
+```{r, message=FALSE}
+library(ggplot2)
+library(dplyr)
+library(rstan)
+library(rstanarm)
+library(bayesplot)
+library(loo)
+library(tidyr)
+library(ggridges)
+```
+
+
+```{r}
+candy <- fivethirtyeight::candy_rankings
+dim(candy)
+names(candy)
+head(candy)
+summary(candy)
+```
+
+Plotting the top 10 candies by win percentage
+```{r}
+candy %>%
+  head(20) %>% 
+  ggplot() +
+  geom_col(aes(y = reorder(competitorname, winpercent), x = winpercent)) +
+  theme_minimal() +
+  labs(x = "Percent of Head to Heads Won", y = NULL, title = "Top 20 Candies") 
+```
+
+Plot how many candies are each type
+```{r}
+candy %>% 
+  summarise_if(is.logical, sum) %>% 
+  pivot_longer(1:ncol(.), names_to = "type", values_to = "count") %>%
+  mutate(type_clean = c("Chocolate", "Fruity", "Caramel", "Peanuty or Almondy", "Nougat", "Crisped Rice Wafer", "Hard", "Bar", "Several Candies in One Bag")) %>% 
+  ggplot(aes(y = reorder(type_clean, count), x = count)) +
+  geom_col() +
+  theme_minimal() +
+  labs(y = NULL, x = NULL, title = "Number of Candies with each Attribute")
+```
+
+Plot win percent by cost
+```{r}
+candy %>% 
+  ggplot(aes(x = pricepercent, y = winpercent)) +
+  geom_jitter() +
+  theme_minimal() +
+  labs(x = "Relative Price", y = "Percent of Head to Heads Won", title = "Price versus Win Rate")
+```
+
+Plot win percent by sugar
+```{r}
+candy %>% 
+  ggplot(aes(x = sugarpercent, y = winpercent)) +
+  geom_jitter() +
+  theme_minimal() +
+  labs(x = "Sugar Content (Percent)", y = "Percent of Head to Heads Won", title = "Sugar Content versus Win Rate") +
+  ylim(0, 100)
+```
+
+Win percent for each candy type
+
+```{r}
+candy %>% 
+  select(winpercent, 2:10) %>%
+  pivot_longer(2:10, names_to = "type", values_to = "is_type") %>% 
+  filter(is_type) %>% 
+  select(-is_type) %>% 
+  group_by(type) %>% 
+  mutate(mean_win = mean(winpercent)) %>% 
+  ungroup() %>% 
+  ggplot(aes(x = winpercent, y = reorder(type, mean_win), height = stat(density))) + 
+  geom_density_ridges(stat = "binline", bins = 20, scale = 0.95, draw_baseline = FALSE) +
+  theme_minimal() +
+  labs(x = "Percent of Head to Heads Won", y = NULL, title = "Candy Type by Win Percent") + 
+  scale_y_discrete(labels = rev(c("Crisped Rice Wafer", "Peanuty or Almondy", "Bar", "Chocolate", "Nougat", "Caramel", "Several Candies in One Bag", "Fruity", "Hard")))
+```
+
+Fit the models
+
+```{r}
+set.seed(454)
+
+model_1 <- stan_glm(winpercent ~ sugarpercent, 
+                data = candy,
+                family = gaussian, 
+                chains = 4, iter = 2*5000, refresh = FALSE)
+
+model_2 <- stan_glm(winpercent ~ sugarpercent + pricepercent, 
+                data = candy,
+                family = gaussian, 
+                chains = 4, iter = 2*5000, refresh = FALSE)
+
+model_3 <- stan_glm(winpercent ~ chocolate + fruity + caramel + peanutyalmondy + nougat + crispedricewafer + hard + bar + pluribus, 
+                data = candy,
+                family = gaussian, 
+                chains = 4, iter = 2*5000, refresh = FALSE)
+
+model_4 <- stan_glm(winpercent ~ chocolate + fruity + caramel + peanutyalmondy + nougat + crispedricewafer + hard + bar + pluribus + sugarpercent + pricepercent, 
+                data = candy,
+                family = gaussian, 
+                chains = 4, iter = 2*5000, refresh = FALSE)
+```
+
+
+Calculate Leave One Out expected log point predictive densities
+```{r}
+"Model 1 Loo"
+(loo_1 <- loo(model_1))$estimates
+"Model 2 Loo"
+(loo_2 <- loo(model_2))$estimates
+"Model 3 Loo"
+(loo_3 <- loo(model_3))$estimates
+"Model 4 Loo"
+(loo_4 <- loo(model_4))$estimates
+
+
+
+lpd_point <- cbind(
+  loo_1$pointwise[,"elpd_loo"], 
+  loo_2$pointwise[,"elpd_loo"],
+  loo_3$pointwise[,"elpd_loo"],
+  loo_4$pointwise[,"elpd_loo"]
+)
+```
+
+Find Pseudo-BMA+ weights
+
+```{r}
+(weights <- pseudobma_weights(lpd_point))
+```
+
+
