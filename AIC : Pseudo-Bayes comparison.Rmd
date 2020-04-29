@@ -1,0 +1,36 @@
+---
+title: "bayes proj"
+author: "Josh Upadhyay"
+date: "4/28/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+Other methods currently in use for model selection include the Akaike Information Criterion, or AIC. This method is most simply thought of as a measure of model ‘balance’, weighing a model’s ability to fit the given data while also considering the possibility for overfitting. The lower AIC score, the better. The AIC equation is given as:
+
+$$AIC = -2 ln(L) + 2k$$
+
+Where $L$ is the model's maximum log-likehood estimate, and $k$ is the number of parameters in the model. While a high log-likelihoods help to decrease AIC, generally these are achieved through more parameters. Of course, the AIC value of a model is only relevant when compared to the AIC for other models. Given multiple models $i$, you can estimate the probability a model $i$ minimizes information loss as such:
+
+$$P_i = e^{(AIC_{min} - AIC_i)/2)}$$
+
+Where $AIC_{min}$ is the lowest score in the set of models. 
+
+Bayesian Model Averaging uses a slightly different method for model selection, known as Leave-One-Out (LOO). A single data point $d_{out}$ is excluded from the dataset while a model $i$ is trained on the rest. The model is then used to predict on $d_{out}$, and the residual is calculated. This is repeated muliple times and the error metric is averaged for each model. (Note: AIC approaches LOO with large samples.)
+
+While exact LOO requires $n$ iterations, one for each point in $y$, Pseudo-BMA reduces computational complexity by taking samples from the posterior distribution $S$. 
+
+![](/Users/joshupadhyay/Documents/yaovhetari.jpg)
+
+
+Given a dataset $y$, the log likelihood function is calculated for a given model $M_k$ with parameters $\Theta$ for each round of LOO performed, averaged to be $w_k$, the 'weight' for each model. This is cumulated over $S$ draws **referring specifically to equation 8 and the one right above it in YaoVehtari paper** This is an implementation of a technique called Pareto smoothed importance sampling leave one out cross validation (PSIS - LOO), which is an efficent way to approximate the predictive distributions $log \text{ }\hat{p} (y_i | y_{-i}, M_K)$. The predictive distributions are then summed over all $n$ data points in the dataset to get the *expected log pointwise predictive density* (elpd), for model $k$. 
+
+
+The elpd of each $k$ model can then be calculated as a fraction of the elpd of all models, to provide the weight for each model $w_k$. 
+
+**WHAT IS THIS WEIGHT? It's not to choose models - is this a weight of importance of the model? highest weight = best model?**
+
