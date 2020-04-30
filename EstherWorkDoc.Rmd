@@ -6,12 +6,74 @@ output: html_document
 bibliography: Library.bib
 ---
 
-Model specification is an element of statistics whose importance is often glossed over. The choice of model can hugely impact the results, and classical methods offer limited guidance on the best process for accounting for the uncertainty this creates. Unstructured searches and checks for the best model specification can lead to incorrect inferences, fragile reported findings, and publication bias [@Fragoso]. Bayesian Model Averaging (BMA) offers an alternative practice that helps ensure findings are robust to a variety of model specifications. At its simplest level, BMA assigns priors to potential model specifications and then caluclates posterior distributions for the model itself, in addition to the coefficients within the specification. This is thus an extension of Bayesian methodology that focuses solely on coefficient estimation. 
+```{r, message=FALSE}
+library(ggplot2)
+library(dplyr)
+library(rstan)
+library(rstanarm)
+library(bayesplot)
+library(loo)
+library(tidyr)
+library(ggridges)
+```
 
-Let us begin by considering a matrix $X$ of all the $n \times p$ potential independent variables to predict a response variable $Y$. A standard linear analysis would assume $Y = X \beta + \epsilon$, where $\beta$ is a coefficient matrix and $\epsilon$ ~ $N(0, \sigma^2)$. In many cases, we are still left with ambiguity about which of the $q=2^p$ model specifications from the model space ${M_1, M_2, ... M_q}$ is best. BMA incorporates this uncertainty into the process rather than ignoring it and claiming that the final model is the only option. This leads to greater flexibility in the inferences of the end results. 
+Model specification is an element of statistics whose importance is often glossed over. In most cases, there are multiple appropriate models for a set of data. The end choice of model can hugely impact the results, and classical methods offer limited guidance on the best process for accounting for the uncertainty this creates. Unstructured searches and checks for the best model specification can lead to incorrect inferences, fragile reported findings, and publication bias [@Montgomery]. Frequentist approaches to model selection include but are not limited to general lasso models, using the Akaike Information Criterion (AIC), and using the root mean squared error (RMSE) or R^2. Bayesian Model Averaging (BMA) offers an alternative practice that helps ensure findings are robust to a variety of model specifications. At its simplest level, BMA assigns priors to potential model specifications and then caluclates posterior distributions for the model itself, in addition to the coefficients within the specification. This is thus an extension of previous Bayesian theory that focuses solely on coefficient estimation. 
 
-We can now assign a prior probability to each of the model specifications $M_k$, as well as the model parameters ($\beta, \sigma^2$). We assume $M_k$ ~ $\pi(M_k)$ and $\sigma^2 | M_k$ ~ $\pi(\sigma^2|M_k)$, $\beta_{\omega} |\sigma^2, M_k$ ~ $\pi(\beta_{\omega} |\sigma^2, M_k )$. In this last assumption, $\Omega$ represents a vector ${\omega_1, \omega_2, ... \omega_p}$ that is populated with zeros and ones indicating the exlcusion or inclusion of variables in model $M_k$. 
+Let us begin by considering a matrix $X$ of all the $n \times p$ potential independent variables to predict a response variable $Y$. A standard linear analysis would assume $Y = X \beta + \epsilon$, where $\beta$ is a coefficient matrix and $\epsilon$ ~ $N(0, \sigma^2)$. There are $q=2^p$ potential model specifications from the model space $\{M_1, M_2, ...M_q\}$, and in many cases, there is ambiguity about which of these is best. BMA incorporates this uncertainty into the process rather than ignoring it and claiming that the final model is the only option. This leads to greater flexibility in the inferences of the end results [@Montgomery]. 
 
-If we assume that $Y|\beta_{\omega}, \sigma^2, M_k$ ~ $N(X_{\omega}\beta_{\omega}, \sigma^2)$ then we know that the marginal distribution of the data under model $M_k$ follows $p(Y|M_k) = \int \int p(Y|\beta_{\omega}, \sigma^2, M_k) \pi(\beta_{\omega}|\sigma^2, M_k) \pi(\sigma^2|M_k) d\beta_{\omega} d\sigma^2$. 
+Each model $M_k$ encompasses the likelihood function $L(Y|\beta_k, M_k)$ of the observed data $Y$ in terms of a model-specific coefficient matrix $\beta_k$ with a prior $\pi(\beta_k|M_k)$. Both the likelihood and priors are conditional on a particular model [@Fragoso]. The posterior distribution for the model parameters is then $$\pi(\beta_k|Y, M_k) = \frac{L(Y|\beta_k, M_k) \; \pi(\beta_k | M_k)}{\int L(Y|\beta_k, M_k) \; \pi(\beta_k | M_k) \; d\beta_k}$$
 
-Then, the posterior probability of model specification $M_k$  is $p(M_k | Y) = \frac{L(M_k | Y) \pi(M_k)}{\sum_{k=0}^q p(Y|M_k)\pi(M_k)}$. 
+The above denominator represents the marginal distribution of the observations over all paramteter values specified in model $M_k$. It is called the model's marginal likelihood or model evidence and is denoted by $\pi(Y|M_k)$. BMA now assumes a prior distribution over the model space describing the prior uncertainty over each model's capability to accurately describe and/or predict the data. This is modeled as a probability density over the model space, with values $\pi(M_k)$ for $k = 1, 2, ... q$ [@Fragoso]. 
+
+Then, the posterior probability of model specification $M_k$ is $$\pi(M_k | Y) = \frac{L(M_k | Y) \; \pi(M_k)}{\sum_{k=0}^q \; \pi(Y|M_k)\; \pi(M_k)}$$. 
+
+These model probabilities can be used in a variety of ways. For example, BMA allows for a direct combination of models to calculate combined estimations for parameters, which leads to lower risk predictions than a single model [@Fragoso]. In addition, BMA can be used in model selection by choosing the model with the highest posterior probability. We will focus on this latter application. 
+
+```{r, echo=FALSE, results=FALSE}
+set.seed(454)
+
+candy <- fivethirtyeight::candy_rankings
+dim(candy)
+names(candy)
+head(candy)
+summary(candy)
+
+model_1 <- stan_glm(winpercent ~ sugarpercent, 
+                data = candy,
+                family = gaussian, 
+                chains = 4, iter = 2*5000, refresh = FALSE)
+
+model_2 <- stan_glm(winpercent ~ sugarpercent + pricepercent, 
+                data = candy,
+                family = gaussian, 
+                chains = 4, iter = 2*5000, refresh = FALSE)
+
+model_3 <- stan_glm(winpercent ~ chocolate + fruity + caramel + peanutyalmondy + nougat + crispedricewafer + hard + bar + pluribus, 
+                data = candy,
+                family = gaussian, 
+                chains = 4, iter = 2*5000, refresh = FALSE)
+
+model_4 <- stan_glm(winpercent ~ chocolate + fruity + caramel + peanutyalmondy + nougat + crispedricewafer + hard + bar + pluribus + sugarpercent + pricepercent, 
+                data = candy,
+                family = gaussian, 
+                chains = 4, iter = 2*5000, refresh = FALSE)
+```
+
+```{r}
+pp_check(model_1)
+pp_check(model_2)
+pp_check(model_3)
+pp_check(model_4)
+
+mcmc_trace(model_1)
+mcmc_trace(model_2)
+mcmc_trace(model_3)
+mcmc_trace(model_4)
+
+
+# simulations are somewhat but not super stable. There are a few noticeable outliers in every model, as well as a relatively wide range of packed simulations. They seem to roughly fit, though go a little high overall.
+```
+
+
+ 
+
