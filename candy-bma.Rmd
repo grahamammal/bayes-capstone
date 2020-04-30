@@ -2,7 +2,9 @@
 title: "Candy Models"
 author: "Ellen Graham"
 date: "4/27/2020"
-output: html_document
+output: 
+  html_document:
+    theme: paper
 ---
 
 ```{r, message=FALSE}
@@ -14,6 +16,7 @@ library(bayesplot)
 library(loo)
 library(tidyr)
 library(ggridges)
+library(purrr)
 ```
 
 
@@ -108,6 +111,16 @@ model_4 <- stan_glm(winpercent ~ chocolate + fruity + caramel + peanutyalmondy +
                 data = candy,
                 family = gaussian, 
                 chains = 4, iter = 2*5000, refresh = FALSE)
+
+model_list <- list(model_1 = model_1, model_2 = model_2, model_3 = model_3, model_4 = model_4)
+```
+
+
+```{r}
+model_1$coefficients
+model_2$coefficients
+model_3$coefficients
+model_4$coefficients
 ```
 
 
@@ -138,4 +151,43 @@ Find Pseudo-BMA+ weights
 (weights <- pseudobma_weights(lpd_point))
 ```
 
+Test our new candy using these models
+
+```{r}
+new_candy <- data.frame(chocolate = TRUE, fruity = TRUE, caramel = TRUE, peanutyalmondy = TRUE, nougat = TRUE, crispedricewafer = TRUE, hard = FALSE, bar = FALSE, 
+                        pluribus = FALSE, sugarpercent = 0.20, pricepercent = 0.9)
+
+my_predict <- function(model) {
+  posterior_predict(model, newdata = new_candy)
+}
+make_df <- function(predictions, index) {
+  data.frame(winpercent_new = predictions[,1], model = index)
+}
+
+
+predictions <- map(model_list, my_predict) %>% 
+  map2(1:4, make_df)
+
+
+```
+
+Sample correctly
+```{r}
+sampled_pred <- predictions %>% 
+  map2(weights, sample_frac) %>% 
+  bind_rows() %>% 
+  mutate(model = as.character(model))
+```
+
+```{r}
+sampled_pred %>% 
+  ggplot(aes(x = winpercent_new, fill = model, color = model)) +
+  geom_density_ridges(alpha = 0.2, aes(y = model)) +
+  theme_minimal()
+
+sampled_pred %>% 
+  ggplot(aes(x = winpercent_new, fill = model, color = model)) +
+  geom_histogram(alpha = 0.9, position = "stack") +
+  theme_minimal()
+```
 
