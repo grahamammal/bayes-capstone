@@ -1,0 +1,322 @@
+---
+title: "Bayes Capstone: (Pseudo) Bayesian Model Averaging"
+author: "Ellen Graham, Ester Swehla, Josh Upadhyay"
+date: "5/1/2020"
+output: 
+  html_document:
+  theme: paper
+bibliography: Library.bib
+
+---
+
+
+# Checkpoint 4 information:
+
+Ellen completed the implementation of the Pseudo-BMA on the candy dataset, and created most of the visualizations shown below. Esther wrote the Bayesian Model Averaging section, did `pp_checks()` on the models and analyzed their stability, while I wrote the section on AIC / BIC with Ellen's help, and merged all work together. 
+
+**Next steps*: Make sure all the writing flows together, add more comments to code, perhaps add a conclusion, and pretty it all up a bit!
+
+
+
+## Introduction to Common Model Selection Critera
+
+Model specification is an element of statistics whose importance is often glossed over. In most cases, there are multiple appropriate models for a set of data. The end choice of model can hugely impact the results, and classical methods offer limited guidance on the best process for accounting for the uncertainty this creates. Unstructured searches and checks for the best model specification can lead to incorrect inferences, fragile reported findings, and publication bias [@Montgomery]. Frequentist approaches to model selection include but are not limited to general lasso models, using the Akaike Information Criterion (AIC), and using the root mean squared error (RMSE) or R^2. We will thus elaborate a little on AIC and its related counterparts, BIC and WAIC. 
+
+
+#### AIC and Some Frequentist Approaches
+
+AIC is most simply thought of as a measure of model ‘balance’, weighing a model’s ability to fit the given data while also considering the possibility for overfitting. The lower AIC score, the better. The AIC equation is given as:
+
+
+$$AIC = -2 ln(L) + 2k$$
+
+Where $L$ is the model's maximum log-likehood estimate, and $k$ is the number of parameters in the model. While a high log-likelihoods help to decrease AIC, generally these are achieved through more parameters. Of course, the AIC value of a model is only relevant when compared to the AIC for other models. Given multiple models $i$, you can estimate the probability a model $i$ minimizes information loss as such, where $AIC_{min}$ is the lowest score in the set of models.
+
+
+$$P_i = e^{(AIC_{min} - AIC_i)/2)}$$
+
+However, AIC does not necessarily translate well to the Bayesian realm - given that priors can be placed on parameters and on models, a Bayesian model could have a high log-likelihood but a low probability. 
+
+Another similar method is the Bayesian Information Criterion, given by:
+
+$$BIC  = k\text{ }ln(n) - 2ln(L)$$
+Where $k$ is the number of parameters in the model, $n$ is the number of data points, and $L$ is again the likelihood function. BIC penalizes free parameters more than the AIC, and while AIC tries to select the best model that describes the data presented, the BIC attempts to select the *true* model from among a model set. https://stats.stackexchange.com/questions/577/is-there-any-reason-to-prefer-the-aic-or-bic-over-the-other. However, like AIC, BIC doesn't naturally fit with the Bayesian framework as it is scored by the likelihood function. 
+
+One information criterion that fits naturally within the Bayesian framework is the Widely Applicable Information Criterion (WAIC).  
+
+\[
+WAIC = 2\sum_{i=1}^nlog\left(\frac{1}{S}\sum_{s=1}^S p(y_i\vert\theta^s) \right) - 2\sum_{i=1}^n V_{s=1}^S(log(p(y_i\vert\theta^s)))
+\]
+
+Where $S$ is the number of posterior draws, $\theta^s$ is the s-th posterior draw for parameters $theta$, and $V^S_{s=1}$ is the sample variance
+
+The first half of WAIC uses the posterior distribution of $\theta$, as opposed to only likelihood estimates for theta as are used in AIC and BIC.  This means that the WAIC is fully bayesian. 
+
+
+Both AIC and WAIC can be viewed as ways of estimating how well a model will predict future data.
+
+
+
+## Bayesian Model Averaging 
+
+Bayesian Model Averaging (BMA) offers an alternative practice that helps ensure findings are robust to a variety of model specifications. At its simplest level, BMA assigns priors to potential model specifications and then caluclates posterior distributions for the model itself, in addition to the coefficients within the specification. This is thus an extension of previous Bayesian theory that focuses solely on coefficient estimation. 
+
+Let us begin by considering a matrix $X$ of all the $n \times p$ potential independent variables to predict a response variable $Y$. A standard linear analysis would assume $Y = X \beta + \epsilon$, where $\beta$ is a coefficient matrix and $\epsilon$ ~ $N(0, \sigma^2)$. There are $q=2^p$ potential model specifications from the model space $\{M_1, M_2, ...M_q\}$, and in many cases, there is ambiguity about which of these is best. BMA incorporates this uncertainty into the process rather than ignoring it and claiming that the final model is the only option. This leads to greater flexibility in the inferences of the end results [@Montgomery]. 
+
+Each model $M_k$ encompasses the likelihood function $L(Y|\beta_k, M_k)$ of the observed data $Y$ in terms of a model-specific coefficient matrix $\beta_k$ with a prior $\pi(\beta_k|M_k)$. Both the likelihood and priors are conditional on a particular model [@Fragoso]. The posterior distribution for the model parameters is then $$\pi(\beta_k|Y, M_k) = \frac{L(Y|\beta_k, M_k) \; \pi(\beta_k | M_k)}{\int L(Y|\beta_k, M_k) \; \pi(\beta_k | M_k) \; d\beta_k}$$
+
+The above denominator represents the marginal distribution of the observations over all paramteter values specified in model $M_k$. It is called the model's marginal likelihood or model evidence and is denoted by $\pi(Y|M_k)$. BMA now assumes a prior distribution over the model space describing the prior uncertainty over each model's capability to accurately describe and/or predict the data. This is modeled as a probability density over the model space, with values $\pi(M_k)$ for $k = 1, 2, ... q$ [@Fragoso]. 
+
+Then, the posterior probability of model specification $M_k$ is $$\pi(M_k | Y) = \frac{L(M_k | Y) \; \pi(M_k)}{\sum_{k=0}^q \; \pi(Y|M_k)\; \pi(M_k)}$$. 
+
+
+## Pseudo-Bayes?
+
+However, Yao, Vehtari indicate that traditional BMA is extremely sensitive to model priors. As a result, *Pseudo-BMA* is built off of a different method for model selection, known as Leave-One-Out Cross Validation (LOO) (but is more stable). Both AIC and WAIC approach LOO as sample sizes increase. A single data point $d_{out}$ is excluded from the dataset while a model $i$ is trained on the rest. The model is then used to predict on $d_{out}$, and the residual is calculated. This is repeated muliple times and the error metric is averaged for each model.
+
+While exact LOO requires $n$ iterations, one for each point in $y$, Pseudo-BMA reduces computational complexity by taking samples, $S$ from the posterior distribution. $w_{i,k}^s$ represents the weights calculated by Pareto Smoothed Importance Sampling (PSIS). Using the PSIS weights with a LOO-styled procedure is coined PSIS-LOO:
+
+(/Users/joshupadhyay/Documents/yaovhetari.jpg) 
+**image link probably broken, will fix!**
+
+Given a dataset $y$, models $M_k$, weights $w_{i,k}^s$, and parameters$\Theta$, PSIS-LOO is an efficent way to approximate the log pointwise predictive distributions $log \text{ }\hat{p} (y_i | y_{-i}, M_K)$.The predictive distributions are then summed over all $n$ data points in the dataset to get the *estimated expected log pointwise predictive density* ($\widehat{elpd}^k$), for a specific model $k$. 
+
+This is similar to model probabilities using AIC, model probabilities are calculated by 
+
+\[
+w_k = \frac{exp(\widehat{elpd}^k)}{\sum_{k=1}^Kexp(\widehat{elpd}^k)}
+\]
+
+In practice, one more step involving bootstrapping is used to deal with additional bias in the estimate. This final model weight $w_k$ is the approximate probability of model k being to true model.  
+
+These model probabilities can be used in a variety of ways. For example, BMA allows for a direct combination of models to calculate combined estimations for parameters, which leads to lower risk predictions than a single model [@Fragoso]. In addition, BMA can be used in model selection by choosing the model with the highest posterior probability. We will focus on this latter application. 
+
+
+
+## Implementation
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, message=FALSE}
+library(ggplot2)
+library(dplyr)
+library(rstan)
+library(rstanarm)
+library(bayesplot)
+library(loo)
+library(tidyr)
+library(ggridges)
+library(purrr)
+```
+
+To illustrate Pseudo-BMA in practice, we've chosen the famous candy dataset from the `fivethirtyeight` package:
+
+```{r}
+candy <- fivethirtyeight::candy_rankings
+dim(candy)
+names(candy)
+head(candy)
+summary(candy)
+```
+
+### Exploratory EDA
+
+Plotting the top 10 candies by win percentage
+```{r}
+candy %>%
+  head(20) %>% 
+  ggplot() +
+  geom_col(aes(y = reorder(competitorname, winpercent), x = winpercent)) +
+  theme_minimal() +
+  labs(x = "Percent of Head to Heads Won", y = NULL, title = "Top 20 Candies") 
+```
+
+Plot how many candies are each type
+```{r}
+candy %>% 
+  summarise_if(is.logical, sum) %>% 
+  pivot_longer(1:ncol(.), names_to = "type", values_to = "count") %>%
+  mutate(type_clean = c("Chocolate", "Fruity", "Caramel", "Peanuty or Almondy", "Nougat", "Crisped Rice Wafer", "Hard", "Bar", "Several Candies in One Bag")) %>% 
+  ggplot(aes(y = reorder(type_clean, count), x = count)) +
+  geom_col() +
+  theme_minimal() +
+  labs(y = NULL, x = NULL, title = "Number of Candies with each Attribute")
+```
+
+Plot win percent by cost
+```{r}
+candy %>% 
+  ggplot(aes(x = pricepercent, y = winpercent)) +
+  geom_jitter() +
+  theme_minimal() +
+  labs(x = "Relative Price", y = "Percent of Head to Heads Won", title = "Price versus Win Rate")
+```
+
+Plot win percent by sugar
+```{r}
+candy %>% 
+  ggplot(aes(x = sugarpercent, y = winpercent)) +
+  geom_jitter() +
+  theme_minimal() +
+  labs(x = "Sugar Content (Percent)", y = "Percent of Head to Heads Won", title = "Sugar Content versus Win Rate") +
+  ylim(0, 100)
+```
+
+Win percent for each candy type
+
+```{r}
+candy %>% 
+  select(winpercent, 2:10) %>%
+  pivot_longer(2:10, names_to = "type", values_to = "is_type") %>% 
+  filter(is_type) %>% 
+  select(-is_type) %>% 
+  group_by(type) %>% 
+  mutate(mean_win = mean(winpercent)) %>% 
+  ungroup() %>% 
+  ggplot(aes(x = winpercent, y = reorder(type, mean_win), height = stat(density))) + 
+  geom_density_ridges(stat = "binline", bins = 20, scale = 0.95, draw_baseline = FALSE) +
+  theme_minimal() +
+  labs(x = "Percent of Head to Heads Won", y = NULL, title = "Candy Type by Win Percent") + 
+  scale_y_discrete(labels = rev(c("Crisped Rice Wafer", "Peanuty or Almondy", "Bar", "Chocolate", "Nougat", "Caramel", "Several Candies in One Bag", "Fruity", "Hard")))
+```
+
+
+We start by creating regular stan models. Each model differs by the number of variables considered, in this case. These posterior distributions are approximated via MCMC. 
+
+```{r}
+set.seed(454)
+model_1 <- stan_glm(winpercent ~ sugarpercent, 
+                data = candy,
+                family = gaussian, 
+                chains = 4, iter = 2*5000, refresh = FALSE)
+model_2 <- stan_glm(winpercent ~ sugarpercent + pricepercent, 
+                data = candy,
+                family = gaussian, 
+                chains = 4, iter = 2*5000, refresh = FALSE)
+model_3 <- stan_glm(winpercent ~ chocolate + fruity + caramel + peanutyalmondy + nougat + crispedricewafer + hard + bar + pluribus, 
+                data = candy,
+                family = gaussian, 
+                chains = 4, iter = 2*5000, refresh = FALSE)
+model_4 <- stan_glm(winpercent ~ chocolate + fruity + caramel + peanutyalmondy + nougat + crispedricewafer + hard + bar + pluribus + sugarpercent + pricepercent, 
+                data = candy,
+                family = gaussian, 
+                chains = 4, iter = 2*5000, refresh = FALSE)
+model_list <- list(model_1 = model_1, model_2 = model_2, model_3 = model_3, model_4 = model_4)
+```
+
+Lets examine the chains
+```{r}
+mcmc_trace(model_1)
+mcmc_dens_overlay(model_1)
+mcmc_trace(model_2)
+mcmc_dens_overlay(model_2)
+mcmc_trace(model_3)
+mcmc_dens_overlay(model_3)
+mcmc_trace(model_4)
+mcmc_dens_overlay(model_4)
+```
+
+
+Examining the stability of our models:
+Ssimulations are somewhat but not super stable. There are a few noticeable outliers in every model, as well as a relatively wide range of packed simulations. They seem to roughly fit, though go a little high overall.
+
+```{r}
+pp_check(model_1)
+pp_check(model_2)
+pp_check(model_3)
+pp_check(model_4)
+mcmc_trace(model_1)
+mcmc_trace(model_2)
+mcmc_trace(model_3)
+mcmc_trace(model_4)
+
+```
+
+As we are satsified, we can proceed with these models. Here are the coefficients: 
+
+```{r}
+model_1$coefficients
+model_2$coefficients
+model_3$coefficients
+model_4$coefficients
+```
+
+
+### Model Evaluations using ELPD
+
+Once the models are calculated, we calcuate Leave One Out expected log point predictive densities (ELPD LOO) for each model. 
+
+Calculate 
+```{r}
+"Model 1 Loo"
+(loo_1 <- loo(model_1))$estimates
+"Model 2 Loo"
+(loo_2 <- loo(model_2))$estimates
+"Model 3 Loo"
+(loo_3 <- loo(model_3))$estimates
+"Model 4 Loo"
+(loo_4 <- loo(model_4))$estimates
+lpd_point <- cbind(
+  loo_1$pointwise[,"elpd_loo"], 
+  loo_2$pointwise[,"elpd_loo"],
+  loo_3$pointwise[,"elpd_loo"],
+  loo_4$pointwise[,"elpd_loo"]
+)
+```
+
+With the ELPD calculations, the models are able to be ranked in order of their contribution, as a percentage. As shown, `model3` has the highest weight with 0.534, followed by `model4`. By this metric, `model3` appears to be the best model from the set of 4 we created above.  
+
+```{r}
+(weights <- pseudobma_weights(lpd_point))
+```
+
+
+### Predictions with Pseudo-BMA
+
+A new type of candy is created (`new_candy`), which is turned into a dataframe for prediction. 
+
+```{r}
+new_candy <- data.frame(chocolate = TRUE, fruity = TRUE, caramel = TRUE, peanutyalmondy = TRUE, nougat = TRUE, crispedricewafer = TRUE, hard = FALSE, bar = FALSE, 
+                        pluribus = FALSE, sugarpercent = 0.20, pricepercent = 0.9)
+my_predict <- function(model) {
+  posterior_predict(model, newdata = new_candy)
+}
+make_df <- function(predictions, index) {
+  data.frame(winpercent_new = predictions[,1], model = index)
+}
+predictions <- map(model_list, my_predict) %>% 
+  map2(1:4, make_df)
+```
+
+Using the `weights` we calculated from using the `pseudobma_weights()` function to obtain ELPD scores, we can then generate sample predictions and visualize them, like so:
+
+```{r}
+sampled_pred <- predictions %>% 
+  map2(weights, sample_frac) %>% 
+  bind_rows() %>% 
+  mutate(model = as.character(model))
+```
+
+```{r}
+sampled_pred %>% 
+  ggplot(aes(x = winpercent_new, fill = model, color = model)) +
+  geom_density_ridges(alpha = 0.2, aes(y = model)) +
+  theme_minimal()
+```
+
+Unsurprisingly, the different models provided slightly different predictions. The $MAP$ 'winpercent' for `model`, `model2` appear to be closer to 45-50%, while the `model3`, `model` show a  'winpercent' of closer to 80%. 
+
+
+```{r}
+sampled_pred %>% 
+  ggplot(aes(x = winpercent_new, fill = model, color = model)) +
+  geom_histogram(alpha = 0.9, position = "stack") +
+  theme_minimal()
+```
+
+As a more visual demonstration of the weights, the contribution of each model is evident in the predictive distribution, with model 3 contributing the largest, followed by model 4. 
+
+
+### Conclusion? Final Thoughts? 
