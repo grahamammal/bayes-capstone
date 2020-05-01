@@ -97,6 +97,8 @@ model_1 <- stan_glm(winpercent ~ sugarpercent,
                 family = gaussian, 
                 chains = 4, iter = 2*5000, refresh = FALSE)
 
+
+
 model_2 <- stan_glm(winpercent ~ sugarpercent + pricepercent, 
                 data = candy,
                 family = gaussian, 
@@ -113,6 +115,21 @@ model_4 <- stan_glm(winpercent ~ chocolate + fruity + caramel + peanutyalmondy +
                 chains = 4, iter = 2*5000, refresh = FALSE)
 
 model_list <- list(model_1 = model_1, model_2 = model_2, model_3 = model_3, model_4 = model_4)
+```
+
+Lets examine the chains
+```{r}
+mcmc_trace(model_1)
+mcmc_dens_overlay(model_1)
+
+mcmc_trace(model_2)
+mcmc_dens_overlay(model_2)
+
+mcmc_trace(model_3)
+mcmc_dens_overlay(model_3)
+
+mcmc_trace(model_4)
+mcmc_dens_overlay(model_4)
 ```
 
 

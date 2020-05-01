@@ -1,0 +1,62 @@
+---
+title: "bayes proj"
+author: "Josh Upadhyay"
+date: "4/28/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+#### Common Model Selection Critera
+
+One of the most common frequentist methods for model selection is the Akaike Information Criterion, or AIC. This method is most simply thought of as a measure of model ‘balance’, weighing a model’s ability to fit the given data while also considering the possibility for overfitting. The lower AIC score, the better. The AIC equation is given as:
+
+
+$$AIC = -2 ln(L) + 2k$$
+
+Where $L$ is the model's maximum log-likehood estimate, and $k$ is the number of parameters in the model. While a high log-likelihoods help to decrease AIC, generally these are achieved through more parameters. Of course, the AIC value of a model is only relevant when compared to the AIC for other models. Given multiple models $i$, you can estimate the probability a model $i$ minimizes information loss as such, where $AIC_{min}$ is the lowest score in the set of models.
+
+
+$$P_i = e^{(AIC_{min} - AIC_i)/2)}$$
+
+However, AIC does not necessarily translate well to the Bayesian realm - given that priors can be placed on parameters and on models, a Bayesian model could have a high log-likelihood but a low probability. 
+
+Another similar method is the Bayesian Information Criterion, given by:
+
+$$BIC  = k\text{ }ln(n) - 2ln(L)$$
+Where $k$ is the number of parameters in the model, $n$ is the number of data points, and $L$ is again the likelihood function. BIC penalizes free parameters more than the AIC, and while AIC tries to select the best model that describes the data presented, the BIC attempts to select the *true* model from among a model set. https://stats.stackexchange.com/questions/577/is-there-any-reason-to-prefer-the-aic-or-bic-over-the-other. However, like AIC, BIC doesn't naturally fit with the Bayesian framework as it is scored by the likelihood function. 
+
+One information criterion that fits naturally within the Bayesian framework is the Widely Applicable Information Criterion (WAIC).  
+
+\[
+WAIC = 2\sum_{i=1}^nlog\left(\frac{1}{S}\sum_{s=1}^S p(y_i\vert\theta^s) \right) - 2\sum_{i=1}^n V_{s=1}^S(log(p(y_i\vert\theta^s)))
+\]
+
+Where $S$ is the number of posterior draws, $\theta^s$ is the s-th posterior draw for parameters $theta$, and $V^S_{s=1}$ is the sample variance
+
+The first half of WAIC uses the posterior distribution of $\theta$, as opposed to only likelihood estimates for theta as are used in AIC and BIC.  This means that the WAIC is fully bayesian. 
+
+
+Both AIC and WAIC can be viewed as ways of estimating how well a model will predict future data.
+
+#### BMA, Pseudo-BMA 
+Bayesian Model Averaging (BMA) is to take an average over all models, weighted by the marginal posterior probability (YaoVehtari). This weighted average is nice, YaoVehtari indicates that traditional BMA is extremely sensitive to model priors. As a result, *Pseudo-BMA* is built off of a different method for model selection, known as Leave-One-Out Cross Validation (LOO) (but is more stable). Both AIC and WAIC approach LOO as sample sizes increase. A single data point $d_{out}$ is excluded from the dataset while a model $i$ is trained on the rest. The model is then used to predict on $d_{out}$, and the residual is calculated. This is repeated muliple times and the error metric is averaged for each model.
+
+While exact LOO requires $n$ iterations, one for each point in $y$, Pseudo-BMA reduces computational complexity by taking samples from the posterior distribution $S$. $w_{i,k}^s$ represents the weights calculated by Pareto Smoothed Importance Sampling (PSIS). 
+
+(/Users/joshupadhyay/Documents/yaovhetari.jpg)
+
+Given a dataset $y$, models $M_k$, PSIS weights $w_{i,k}^s$, and parameters$\Theta$, the predictive density of a giving sampling round is multiplied by the corresponding weight, divided by the sum of the weights. This is an implementation of a technique called Pareto smoothed importance sampling leave one out cross validation (PSIS - LOO), which is an efficent way to approximate the log pointwise predictive distributions $log \text{ }\hat{p} (y_i | y_{-i}, M_K)$. The predictive distributions are then summed over all $n$ data points in the dataset to get the *estimated expected log pointwise predictive density* ($\widehat{elpd}^k$), for a specific model $k$. 
+
+The similar to model probabilities using AIC, model probabilities are calculated by 
+
+\[
+w_k = \frac{exp(\widehat{elpd}^k)}{\sum_{k=1}^Kexp(\widehat{elpd}^k)}
+\]
+
+In practice, one more step involving bootstrapping is used to deal with additional bias in the estimate. This final model weight $w_k$ is the approximate probability of model k being to true model.  
+
+
