@@ -45,11 +45,11 @@ Both AIC and WAIC can be viewed as ways of estimating how well a model will pred
 #### BMA, Pseudo-BMA 
 Bayesian Model Averaging (BMA) is to take an average over all models, weighted by the marginal posterior probability (YaoVehtari). This weighted average is nice, YaoVehtari indicates that traditional BMA is extremely sensitive to model priors. As a result, *Pseudo-BMA* is built off of a different method for model selection, known as Leave-One-Out Cross Validation (LOO) (but is more stable). Both AIC and WAIC approach LOO as sample sizes increase. A single data point $d_{out}$ is excluded from the dataset while a model $i$ is trained on the rest. The model is then used to predict on $d_{out}$, and the residual is calculated. This is repeated muliple times and the error metric is averaged for each model.
 
-While exact LOO requires $n$ iterations, one for each point in $y$, Pseudo-BMA reduces computational complexity by taking samples from the posterior distribution $S$. $w_{i,k}^s$ represents the weights calculated by Pareto Smoothed Importance Sampling (PSIS). 
+While exact LOO requires $n$ iterations, one for each point in $y$, Pseudo-BMA reduces computational complexity by taking samples, $S$ from the posterior distribution. $w_{i,k}^s$ represents the weights calculated by Pareto Smoothed Importance Sampling (PSIS). Using the PSIS weights with a LOO-styled procedure is coined PSIS-LOO:
 
 (/Users/joshupadhyay/Documents/yaovhetari.jpg)
 
-Given a dataset $y$, models $M_k$, PSIS weights $w_{i,k}^s$, and parameters$\Theta$, the predictive density of a giving sampling round is multiplied by the corresponding weight, divided by the sum of the weights. This is an implementation of a technique called Pareto smoothed importance sampling leave one out cross validation (PSIS - LOO), which is an efficent way to approximate the log pointwise predictive distributions $log \text{ }\hat{p} (y_i | y_{-i}, M_K)$. The predictive distributions are then summed over all $n$ data points in the dataset to get the *estimated expected log pointwise predictive density* ($\widehat{elpd}^k$), for a specific model $k$. 
+Given a dataset $y$, models $M_k$, weights $w_{i,k}^s$, and parameters$\Theta$, PSIS-LOO is an efficent way to approximate the log pointwise predictive distributions $log \text{ }\hat{p} (y_i | y_{-i}, M_K)$.The predictive distributions are then summed over all $n$ data points in the dataset to get the *estimated expected log pointwise predictive density* ($\widehat{elpd}^k$), for a specific model $k$. 
 
 The similar to model probabilities using AIC, model probabilities are calculated by 
 

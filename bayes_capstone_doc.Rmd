@@ -5,14 +5,14 @@ date: "5/1/2020"
 output: 
   html_document:
   theme: paper
-bibliography: Library.bib
 
 ---
 
+## removed the bibliography section and it knitted for me so we'll need to add that to github
 
 # Checkpoint 4 information:
 
-Ellen completed the implementation of the Pseudo-BMA on the candy dataset, and created most of the visualizations shown below. Esther wrote the Bayesian Model Averaging section, did `pp_checks()` on the models and analyzed their stability, while I wrote the section on AIC / BIC with Ellen's help, and merged all work together. 
+Ellen completed the implementation of the Pseudo-BMA on the candy dataset, and created most of the visualizations shown below. Esther wrote the Bayesian Model Averaging section, did `pp_checks()` on the models and analyzed their stability, while I wrote the section on AIC / BIC with Ellen's help, and merged all work together, wrote up checkpoint 4, and added all comments. 
 
 **Next steps*: Make sure all the writing flows together, add more comments to code, perhaps add a conclusion, and pretty it all up a bit!
 
