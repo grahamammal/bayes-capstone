@@ -91,7 +91,7 @@ While exact LOO requires $n$ iterations, one for each point in $y$, Pseudo-BMA r
 
 Given a dataset $y$, models $M_k$, weights $w_{i,k}^s$, and parameters$\Theta$, PSIS-LOO is an efficent way to approximate the estimate of the expected log pointwise predictive density for model k, which is the measure of how good model k is at fitting out of sample data:
 
-\]
+\[
 \widehat{elpd}^k=\sum_{i=1}^n log(\hat{p} (y_i | y_1,\dots y_{i-1},y_{i+1},y_n, M_K))
 \]
 
