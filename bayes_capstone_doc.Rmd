@@ -4,18 +4,11 @@ author: "Ellen Graham, Ester Swehla, Josh Upadhyay"
 date: "5/1/2020"
 output: 
   html_document:
+    toc: true
+    toc_float: true
     theme: paper
+    code_folding: hide
 ---
-
-## removed the bibliography section and it knitted for me so we'll need to add that to github
-
-# Checkpoint 4 information:
-
-Ellen completed the implementation of the Pseudo-BMA on the candy dataset, and created most of the visualizations shown below. Esther wrote the Bayesian Model Averaging section, did `pp_checks()` on the models and analyzed their stability, while I wrote the section on AIC / BIC with Ellen's help, and merged all work together, wrote up checkpoint 4, and added all comments. 
-
-**Next steps*: Make sure all the writing flows together, add more comments to code, perhaps add a conclusion, and pretty it all up a bit!
-
-
 
 ## Introduction to Common Model Selection Critera
 
@@ -35,11 +28,10 @@ $$AIC = -2 ln(L) + 2k$$
 Where $L$ is the model's likehood, and $k$ is the number of parameters in the model. Because more parameters allow a model to fit better to within sample data, it is used as the bias corrector. 
 
 
-Move to BMA section?
-Given multiple models $i$, you can estimate the probability a model $i$ minimizes information loss as such, where $AIC_{min}$ is the lowest score in the set of models.
+Given multiple models $i$, you can estimate the probability a model $k$ minimizes information loss as such, where $AIC_{min}$ is the lowest score in the set of models.
 
 
-$$P_i = e^{(AIC_{min} - AIC_i)/2)}$$
+$$P_k = exp\left(\frac{AIC_{min} - AIC_k}{2}\right)$$
 
 AIC fits well in the freqentist frame. The likelihood component is assumed to come from the maximum likelihood estimates of paramters, which Bayesian methods don't select for, and point estimates for parameters are used, instead of using the full posterior distribution.
 
@@ -77,18 +69,35 @@ The above denominator represents the marginal distribution of the observations o
 Then, the posterior probability of model specification $M_k$ is $$\pi(M_k | Y) = \frac{L(M_k | Y) \; \pi(M_k)}{\sum_{k=0}^q \; \pi(Y|M_k)\; \pi(M_k)}$$. 
 
 
-## Pseudo-Bayes?
+### Pseudo-Bayesian Model Averaging
 
-However, Yao, Vehtari indicate that traditional BMA is extremely sensitive to model priors. As a result, *Pseudo-BMA* is built off of a different method for model selection, known as Leave-One-Out Cross Validation (LOO) (but is more stable). Both AIC and WAIC approach LOO as sample sizes increase. A single data point $d_{out}$ is excluded from the dataset while a model $i$ is trained on the rest. The model is then used to predict on $d_{out}$, and the residual is calculated. This is repeated muliple times and the error metric is averaged for each model.
+Traditional BMA is not without issues. For example, changing priors from one vague prior to another can significantly impact posterior model probablities. And calculating model likelihoods becomes extremely diffiuclt for anything but the simplest models. 
 
-While exact LOO requires $n$ iterations, one for each point in $y$, Pseudo-BMA reduces computational complexity by taking samples, $S$ from the posterior distribution. $w_{i,k}^s$ represents the weights calculated by Pareto Smoothed Importance Sampling (PSIS). Using the PSIS weights with a LOO-styled procedure is coined PSIS-LOO:
+As a result of these issues, a method called *Pseudo-BMA* was created. This has the same core idea as BMA, but instead of calculating model likelhoods, something called Leave-One-Out cross validation  (LOO-CV) is used.
 
-(/Users/joshupadhyay/Documents/yaovhetari.jpg) 
-**image link probably broken, will fix!**
+Similar to the information criterion, LOO-CV estimates how good a model is at predicting out of sample data. To do this, it fits the model on all but one data points, then checks how well it predicts the missing data point. The log of this probability is used This is done for every data point in the sample. 
 
-Given a dataset $y$, models $M_k$, weights $w_{i,k}^s$, and parameters$\Theta$, PSIS-LOO is an efficent way to approximate the log pointwise predictive distributions $log \text{ }\hat{p} (y_i | y_{-i}, M_K)$.The predictive distributions are then summed over all $n$ data points in the dataset to get the *estimated expected log pointwise predictive density* ($\widehat{elpd}^k$), for a specific model $k$. 
+Put mathematically given S simulation draws , this is:
 
-This is similar to model probabilities using AIC, model probabilities are calculated by 
+\[
+\sum_{i=1}^nlog(p(y_i\vert y_1,\dots y_{i-1},y_{i+1},y_n)) 
+\]
+
+Where the term in the $log$ is the probability of seeing $y_i$ from a model trained on all the data excluding $y_i$. 
+
+By adding a complicated bias term, this can be turned into an information criterion. Both AIC and WAIC will approach LOO-CV as sample size increases. 
+
+While exact LOO requires $n$ iterations, one for each point in $y$, Pseudo-BMA reduces computational complexity by taking samples from the posterior distribution. Using a technique called Pareto Smoothed Importance Sampling (PSIS), LOO-CV is estimated. This method also allows Pseudo-BMA to be used on models with parameters that have already been fitted. 
+
+Given a dataset $y$, models $M_k$, weights $w_{i,k}^s$, and parameters$\Theta$, PSIS-LOO is an efficent way to approximate the estimate of the expected log pointwise predictive density for model k, which is the measure of how good model k is at fitting out of sample data:
+
+\]
+\widehat{elpd}^k=\sum_{i=1}^n log(\hat{p} (y_i | y_1,\dots y_{i-1},y_{i+1},y_n, M_K))
+\]
+
+Where conditioning on $M_k$ means using that model for parameter estimates. 
+
+This is similar to model probabilities using AIC, model probabilities are calculated by: 
 
 \[
 w_k = \frac{exp(\widehat{elpd}^k)}{\sum_{k=1}^Kexp(\widehat{elpd}^k)}
@@ -118,6 +127,11 @@ library(ggridges)
 library(purrr)
 ```
 
+```{r, echo=FALSE}
+theme_set(theme_minimal())
+```
+
+
 To illustrate Pseudo-BMA in practice, we've chosen the famous candy dataset from the `fivethirtyeight` package:
 
 ```{r}
@@ -136,7 +150,6 @@ candy %>%
   head(20) %>% 
   ggplot() +
   geom_col(aes(y = reorder(competitorname, winpercent), x = winpercent)) +
-  theme_minimal() +
   labs(x = "Percent of Head to Heads Won", y = NULL, title = "Top 20 Candies") 
 ```
 
@@ -148,7 +161,6 @@ candy %>%
   mutate(type_clean = c("Chocolate", "Fruity", "Caramel", "Peanuty or Almondy", "Nougat", "Crisped Rice Wafer", "Hard", "Bar", "Several Candies in One Bag")) %>% 
   ggplot(aes(y = reorder(type_clean, count), x = count)) +
   geom_col() +
-  theme_minimal() +
   labs(y = NULL, x = NULL, title = "Number of Candies with each Attribute")
 ```
 
@@ -157,7 +169,6 @@ Plot win percent by cost
 candy %>% 
   ggplot(aes(x = pricepercent, y = winpercent)) +
   geom_jitter() +
-  theme_minimal() +
   labs(x = "Relative Price", y = "Percent of Head to Heads Won", title = "Price versus Win Rate")
 ```
 
@@ -166,7 +177,6 @@ Plot win percent by sugar
 candy %>% 
   ggplot(aes(x = sugarpercent, y = winpercent)) +
   geom_jitter() +
-  theme_minimal() +
   labs(x = "Sugar Content (Percent)", y = "Percent of Head to Heads Won", title = "Sugar Content versus Win Rate") +
   ylim(0, 100)
 ```
@@ -184,7 +194,6 @@ candy %>%
   ungroup() %>% 
   ggplot(aes(x = winpercent, y = reorder(type, mean_win), height = stat(density))) + 
   geom_density_ridges(stat = "binline", bins = 20, scale = 0.95, draw_baseline = FALSE) +
-  theme_minimal() +
   labs(x = "Percent of Head to Heads Won", y = NULL, title = "Candy Type by Win Percent") + 
   scale_y_discrete(labels = rev(c("Crisped Rice Wafer", "Peanuty or Almondy", "Bar", "Chocolate", "Nougat", "Caramel", "Several Candies in One Bag", "Fruity", "Hard")))
 ```
@@ -309,8 +318,7 @@ sampled_pred <- predictions %>%
 ```{r}
 sampled_pred %>% 
   ggplot(aes(x = winpercent_new, fill = model, color = model)) +
-  geom_density_ridges(alpha = 0.2, aes(y = model)) +
-  theme_minimal()
+  geom_density_ridges(alpha = 0.2, aes(y = model))
 ```
 
 Unsurprisingly, the different models provided slightly different predictions. The $MAP$ 'winpercent' for `model`, `model2` appear to be closer to 45-50%, while the `model3`, `model` show a  'winpercent' of closer to 80%. 
@@ -319,8 +327,7 @@ Unsurprisingly, the different models provided slightly different predictions. Th
 ```{r}
 sampled_pred %>% 
   ggplot(aes(x = winpercent_new, fill = model, color = model)) +
-  geom_histogram(alpha = 0.9, position = "stack") +
-  theme_minimal()
+  geom_histogram(alpha = 0.9, position = "stack")
 ```
 
 As a more visual demonstration of the weights, the contribution of each model is evident in the predictive distribution, with model 3 contributing the largest, followed by model 4. 
