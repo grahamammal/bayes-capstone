@@ -44,6 +44,10 @@ Where $k$ is the number of parameters in the model, $n$ is the number of data po
 
 BIC penalizes free parameters more than the AIC when data sets are large. While AIC tries to select the best model that describes the data presented, the BIC attempts to select the *true* model from among a model set. However, like AIC, BIC doesn't naturally fit with the Bayesian framework as it is scored by the likelihood function. 
 
+
+### cite this with https://www.statisticshowto.com/bayesian-information-criterion/
+
+
 #### Widely Applicable Information Criterion
 
 One information criterion that fits naturally within the Bayesian framework is the Widely Applicable Information Criterion (WAIC):
@@ -53,6 +57,9 @@ One information criterion that fits naturally within the Bayesian framework is t
 Where $S$ is the number of posterior draws, $\theta^s$ is the s-th posterior draw for parameters $theta$, and $V^S_{s=1}(a_s)$ is the sample variance of $a_s$.
 
 The first half of WAIC uses the posterior distribution of $\theta$, as opposed to only likelihood estimates for theta as are used in AIC and BIC.  This means that the WAIC is fully Bayesian. The second half is the bias corrector which can be thought of as the number of unconstrained parameters accounting for the complex ways Bayesian parameters interact. 
+
+###http://www.jmlr.org/papers/volume14/watanabe13a/watanabe13a.pdf not sure how to cite but let's cite this info 
+
 
 ## Bayesian Model Averaging 
 
@@ -66,12 +73,15 @@ The above denominator represents the marginal distribution of the observations o
 
 Then, the posterior probability of model specification $M_k$ is $$\pi(M_k | Y) = \frac{L(M_k | Y) \; \pi(M_k)}{\sum_{k=0}^q \; \pi(Y|M_k)\; \pi(M_k)}$$. 
 
+### cite Yao Vehtari paper here 
+
 
 ### Pseudo-Bayesian Model Averaging
 
 Traditional BMA is not without issues. For example, changing priors from one vague prior to another can significantly impact posterior model probablities. And calculating model likelihoods becomes extremely diffiuclt for anything but the simplest models. 
 
-As a result of these issues, a method called *Pseudo-BMA* was created. This has the same core idea as BMA, but instead of calculating model likelhoods, something called Leave-One-Out cross validation  (LOO-CV) is used.
+As a result of these issues, a method called *Pseudo-BMA* was created. This has the same core idea as BMA, but instead of calculating model likelhoods, something called Leave-One-Out cross validation  (LOO-CV) is used. ***cite yaovehtari paper here**
+
 
 Similar to the information criterion, LOO-CV estimates how good a model is at predicting out of sample data. To do this, it fits the model on all but one data points, then checks how well it predicts the missing data point. The log of this probability is used This is done for every data point in the sample. 
 
@@ -123,6 +133,8 @@ library(loo)
 library(tidyr)
 library(ggridges)
 library(purrr)
+library(gridExtra)
+library(knitr)
 ```
 
 ```{r, echo=FALSE}
@@ -175,10 +187,7 @@ To illustrate Pseudo-BMA in practice, we've chosen the famous candy dataset from
 
 ```{r}
 candy <- fivethirtyeight::candy_rankings
-dim(candy)
 names(candy)
-head(candy)
-summary(candy)
 ```
 
 ### Exploratory EDA
@@ -203,25 +212,23 @@ candy %>%
   labs(y = NULL, x = NULL, title = "Number of Candies with each Attribute")
 ```
 
-Plot win percent by cost
+Plotting Price and Sugar Content vs Win Rate
 ```{r}
-candy %>% 
+winbycost <- candy %>% 
   ggplot(aes(x = pricepercent, y = winpercent)) +
   geom_jitter() +
   labs(x = "Relative Price", y = "Percent of Head to Heads Won", title = "Price versus Win Rate")
-```
 
-Plot win percent by sugar
-```{r}
-candy %>% 
+winbysugar <- candy %>% 
   ggplot(aes(x = sugarpercent, y = winpercent)) +
   geom_jitter() +
   labs(x = "Sugar Content (Percent)", y = "Percent of Head to Heads Won", title = "Sugar Content versus Win Rate") +
   ylim(0, 100)
+
+grid.arrange(winbycost, winbysugar, ncol = 2)
 ```
 
-Win percent for each candy type
-
+Win percent for each candy type:
 ```{r}
 candy %>% 
   select(winpercent, 2:10) %>%
@@ -237,10 +244,12 @@ candy %>%
   scale_y_discrete(labels = rev(c("Crisped Rice Wafer", "Peanuty or Almondy", "Bar", "Chocolate", "Nougat", "Caramel", "Several Candies in One Bag", "Fruity", "Hard")))
 ```
 
+### Model Creation and Assessment
+
 
 We start by creating regular stan models. Each model differs by the number of variables considered, in this case. These posterior distributions are approximated via MCMC. 
 
-```{r}
+```{r, cache = TRUE}
 set.seed(454)
 model_1 <- stan_glm(winpercent ~ sugarpercent, 
                 data = candy,
@@ -261,33 +270,32 @@ model_4 <- stan_glm(winpercent ~ chocolate + fruity + caramel + peanutyalmondy +
 model_list <- list(model_1 = model_1, model_2 = model_2, model_3 = model_3, model_4 = model_4)
 ```
 
-Lets examine the chains
-```{r}
+
+
+
+#### Model Stability
+
+Once we have the models, we can then use tools such as trace plots and density overlays to assess the stability of our models. The trace plot and overlay for model 1 is shown below: 
+```{r, cache = TRUE}
 mcmc_trace(model_1)
 mcmc_dens_overlay(model_1)
-mcmc_trace(model_2)
-mcmc_dens_overlay(model_2)
-mcmc_trace(model_3)
-mcmc_dens_overlay(model_3)
-mcmc_trace(model_4)
-mcmc_dens_overlay(model_4)
-```
-
-
-Examining the stability of our models:
-Ssimulations are somewhat but not super stable. There are a few noticeable outliers in every model, as well as a relatively wide range of packed simulations. They seem to roughly fit, though go a little high overall.
-
-```{r}
-pp_check(model_1)
-pp_check(model_2)
-pp_check(model_3)
-pp_check(model_4)
-mcmc_trace(model_1)
-mcmc_trace(model_2)
-mcmc_trace(model_3)
-mcmc_trace(model_4)
 
 ```
+
+While the trace plots show a fairly wide band, indicating some variation in the values used for each variable, no flatlining is present. We can also see that all models returned similar distributions for each of the parameters in model 1 (Intercept, sugarpercent, sigma). Similar behavior is seen in all the trace plots and density overlays for each model (see Appendix), thus the models appear usable. 
+
+#### Model Correctness
+
+To assess if the structure of our models is reasonable, we can use `pp_check()` to compare simulated samples to the real values. 
+
+```{r, cache = TRUE}
+grid.arrange(pp_check(model_1) + labs(title = 'Model 1'), pp_check(model_2) + labs(title = 'Model 2'), 
+             pp_check(model_3) + labs(title = 'Model 3'), pp_check(model_4) + labs(title = 'Model 4'))
+
+```
+
+All models seem to roughly fit the distribution of the data. There are a few noticeable outliers in every model, and each model appears to have a higher peak than the distribution of the actual data, but these are not considered wrong models. 
+
 
 As we are satsified, we can proceed with these models. Here are the coefficients: 
 
@@ -304,7 +312,7 @@ model_4$coefficients
 Once the models are calculated, we calcuate Leave One Out expected log point predictive densities (ELPD LOO) for each model. 
 
 Calculate 
-```{r}
+```{r, cache = TRUE}
 "Model 1 Loo"
 (loo_1 <- loo(model_1))$estimates
 "Model 2 Loo"
@@ -333,7 +341,7 @@ With the ELPD calculations, the models are able to be ranked in order of their c
 
 A new type of candy is created (`new_candy`), which is turned into a dataframe for prediction. A table of predictions for all models is then created, titled `predictions`. 
 
-```{r}
+```{r, cache = TRUE}
 new_candy <- data.frame(chocolate = TRUE, fruity = TRUE, caramel = TRUE, peanutyalmondy = TRUE, nougat = TRUE, crispedricewafer = TRUE, hard = FALSE, bar = FALSE, 
                         pluribus = FALSE, sugarpercent = 0.20, pricepercent = 0.9)
 my_predict <- function(model) {
@@ -354,14 +362,12 @@ sampled_pred <- predictions %>%  #calculating sample predictions for each model
   map2(weights, sample_frac) %>% 
   bind_rows() %>% 
   mutate(model = as.character(model))
-```
 
-
-```{r}
 sampled_pred %>% 
   ggplot(aes(x = winpercent_new, fill = model, color = model)) +
   geom_density_ridges(alpha = 0.2, aes(y = model)) + labs(title = 'Posterior Predictive Distributions for our Generated Candy')
 ```
+
 
 Unsurprisingly, the different models provided slightly different predictions. The $MAP$ 'winpercent' for `model`, `model2` appear to be closer to 45-50%, while the `model3`, `model4` show a  'winpercent' of closer to 80%. 
 
@@ -378,10 +384,19 @@ As a more visual demonstration of the weights, the contribution of each model is
 
 As shown above, it is evident that the pseudo-BMA model's prediction is heavily reliant on model 3 & 4, with similar $MAP$ values of around 80% for the win percentage for the made up candy. To better understand the advantage of Pseudo-BMA, we can compare its predictions to that of model 3, the 'best' standalone model, using the `ppc_intervals` function.
 
-```{r, echo = FALSE}
+A sample was generated for this test. 
+```{r}
+set.seed(454)
+sampled_candy <- sample_frac(candy, size = 0.2, replace = FALSE)
+```
+
+
+```{r, echo = FALSE, cache = TRUE}
 set.seed(454)
 sampled_candy <- sample_frac(candy, size = 0.2, replace = FALSE)
 
+
+##did not end up using this function at all :( 
 candy_plotter <- function(given_model){
   candy_predictions <- posterior_linpred(
   given_model, 
@@ -402,30 +417,38 @@ yrep = candy_predictions, prob_outer = 0.95) +
 ```
 
 
-```{r, echo = FALSE}
+```{r, echo = FALSE, cache = TRUE}
 candy_predictions1 <- posterior_linpred(
   model_1, 
   newdata = sampled_candy, transform = TRUE)
 candy_predictions2 <- posterior_linpred(
   model_2, 
   newdata = sampled_candy, transform = TRUE)
-candy_predictions3 <- posterior_linpred(
-  model_3, 
-  newdata = sampled_candy, transform = TRUE)
+
 candy_predictions4 <- posterior_linpred(
   model_4, 
   newdata = sampled_candy, transform = TRUE)
 
-pseudo_predictions <- candy_predictions1*weights[1] + candy_predictions2*weights[2] + candy_predictions3*weights[3] + candy_predictions4*weights[4]
-
-
-pred3 <- colMeans(candy_predictions3)
 
 
 ```
 
 
-```{r, echo  = FALSE}
+The mean predictions for the Pseudo-BMA model were obtained by a weighted average of all model predictions. Then Model 3's predictions could be compared visually to the Pseudo-BMA model: 
+```{r}
+candy_predictions3 <- posterior_linpred(
+  model_3, 
+  newdata = sampled_candy, transform = TRUE)
+
+pred3 <- colMeans(candy_predictions3) #needed to take the mean for plotting, below
+
+pseudo_predictions <- candy_predictions1*weights[1] + candy_predictions2*weights[2] + candy_predictions3*weights[3] + candy_predictions4*weights[4]
+
+```
+
+
+
+```{r, cache = TRUE}
 ppc_intervals(sampled_candy$winpercent, 
 yrep = pseudo_predictions, prob_outer = 0.95) +
   ggplot2::scale_x_continuous(
@@ -439,8 +462,8 @@ yrep = pseudo_predictions, prob_outer = 0.95) +
 
 Once again, unsurprisingly, the mean predictions for all 17 candies for `model3` and the pseudo-BMA weighted average are fairly close. However, evident for *Baby Ruth, Nestle Butterfinger, and Reese's Peanut Butter Cup* the pseudo-BMA weighted average model is slightly closer to the actual win percentage. In other cases, like *Sour Patch Kids, Reese's Miniatures, and Air Heads*, model 3 appears to have better predictions. 
 
+#### Numerical Comparison of Model Strength
 
-**A Comparison of Pseudo-BMA and Model 3 Accuracy**
 ```{r}
 
  # rbind(prediction_summary(y = sampled_candy$winpercent, 
@@ -448,13 +471,16 @@ Once again, unsurprisingly, the mean predictions for all 17 candies for `model3`
   #      prediction_summary(y = sampled_candy$winpercent, 
   #yrep = candy_predictions_3))
 
-tibble(
+comparison_results <- tibble(
   model = c('Pseudo-BMA', 'Model 3'),
   mae = c(22.25264, 24.55274),
   mae_scaled = c(0.7003848,5.5119684),
   within_50 = c(0.17647059, 0.05882353),
   within_95 = c(0.2352941	, 0.1764706	)
 )
+
+kable(comparison_results)
+
 
 ```
 
@@ -472,18 +498,28 @@ The concept of taking a weighted average of the predictions from multiple models
 ## Appendix Section:
 
 
+#### Overlay, Trace Plots for models 2,3,4:
+```{r, cache = TRUE}
+mcmc_trace(model_2)
+mcmc_dens_overlay(model_2)
+mcmc_trace(model_3)
+mcmc_dens_overlay(model_3)
+mcmc_trace(model_4)
+mcmc_dens_overlay(model_4)
+```
+
 
 #### PPC Interval Graphs for models 1,2,4:
 Models graphed in that order:
 
-```{r}
+```{r, cache = TRUE}
 candy_plotter(model_1)
 ```
 
-```{r}
+```{r, cache = TRUE}
 candy_plotter(model_2)
 ```
 
-```{r}
+```{r, cache = TRUE}
 candy_plotter(model_4)
 ```
