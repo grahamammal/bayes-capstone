@@ -371,9 +371,11 @@ sampled_pred <- predictions %>%  #calculating sample predictions for each model
   bind_rows() %>% 
   mutate(model = as.character(model))
 
-sampled_pred %>% 
-  ggplot(aes(x = winpercent_new, fill = model, color = model)) +
-  geom_density_ridges(alpha = 0.2, aes(y = model)) + labs(title = 'Posterior Predictive Distributions for our Generated Candy')
+predictions %>%
+  bind_rows() %>% 
+  ggplot(aes(x = winpercent_new, fill = as.character(model), color = as.character(model))) +
+  geom_density_ridges(alpha = 0.2, aes(y = reorder(as.character(model), -model))) + labs(title = 'Posterior Predictive Distributions for The Four Models', y = "Model", x = "Predicted Percent of Wins") +
+  theme(legend.position = "none")
 ```
 
 
@@ -382,7 +384,11 @@ Unsurprisingly, the different models provided slightly different predictions. Th
 ```{r}
 sampled_pred %>% 
   ggplot(aes(x = winpercent_new, fill = model, color = model)) +
-  geom_histogram(alpha = 0.9, position = "stack")
+  geom_histogram(alpha = 0.9, 
+                 position = position_stack(),
+                 binwidth = 5, 
+                 boundary = 0) +
+  labs(x = "Predicted Percent of Wins", y = "Draws", fill = "Model", color = "Model")
 ```
 
 As a more visual demonstration of the weights, the contribution of each model is evident in the predictive distribution, with model 3 contributing the largest, followed by model 4. Thus, it is not surprising that the pseudo-BMA model also has an $MAP$ of around 80%, given the dominance of `model3` in the weighted averaging. 
@@ -403,21 +409,20 @@ sampled_candy <- sample_frac(candy, size = 0.2, replace = FALSE)
 set.seed(454)
 sampled_candy <- sample_frac(candy, size = 0.2, replace = FALSE)
 
-
-##did not end up using this function at all :( 
 candy_plotter <- function(given_model){
   candy_predictions <- posterior_linpred(
   given_model, 
   newdata = sampled_candy, transform = TRUE)
   
   graph <- ppc_intervals(sampled_candy$winpercent, 
-yrep = candy_predictions, prob_outer = 0.95) +
-  ggplot2::scale_x_continuous(
+                         yrep = candy_predictions, prob_outer = 0.95) +
+  scale_x_continuous(
      labels = sampled_candy$competitorname,
      breaks = 1:nrow(sampled_candy)
   ) +
-  xaxis_text(angle = 90, vjust = 1, hjust = 0) + 
-  lims(y = c(5, 90))
+    lims(y = c(5, 90)) +
+    coord_flip() +
+    labs(x = NULL, y = "Win Percent")
   
   return(graph)
 }
@@ -463,9 +468,13 @@ yrep = pseudo_predictions, prob_outer = 0.95) +
      labels = sampled_candy$competitorname,
      breaks = 1:nrow(sampled_candy)
   ) +
-  xaxis_text(angle = 90, vjust = 1, hjust = 0) + 
-  lims(y = c(5, 90)) + geom_point(aes(x = c(1:17), y = pred3), color = 'red') + labs(title ="Pseudo-BMA model vs Model 3 On 17 Randomly Sampled Candies",
-                                                                                     subtitle = 'Red Dots are Model 3 average predictions')
+  lims(y = c(5, 90)) + 
+  geom_point(aes(x = c(1:17), y = pred3), color = 'red') + 
+  labs(title ="Pseudo-BMA model vs Model 3 On 17 Randomly Sampled Candies",
+       subtitle = 'Red Dots are Model 3 average predictions',
+       x = NULL,
+       y = "Win Percent") +
+  coord_flip()
 ```
 
 Once again, unsurprisingly, the mean predictions for all 17 candies for `model3` and the pseudo-BMA weighted average are fairly close. However, evident for *Baby Ruth, Nestle Butterfinger, and Reese's Peanut Butter Cup* the pseudo-BMA weighted average model is slightly closer to the actual win percentage. In other cases, like *Sour Patch Kids, Reese's Miniatures, and Air Heads*, model 3 appears to have better predictions. 
@@ -488,8 +497,6 @@ comparison_results <- tibble(
 )
 
 kable(comparison_results)
-
-
 ```
 
 While hard to tell which is better visually, `prediction_summary()` plainly indicates the better model. Due to the use of a weighted average, Pseudo BMA is evidently more accurate than model 3. On average, pseudo-BMA was 2% closer to the actual win percentage of a candy than model 3, (MAE), and 23.5% of the candy's win percentage is within the middle 95% of pseudo-BMA's predictive distribution. While the pseudo-BMA predictions are better than the individual models, far more of the candies than should be are outside of the 95% intervals. This means the model vastly overestimates its accuracy, and perhaps another model entirely should be used. 
@@ -520,14 +527,17 @@ mcmc_dens_overlay(model_4)
 #### PPC Interval Graphs for models 1,2,4:
 Models graphed in that order:
 
-```{r, cache = TRUE}
+```{r}
 candy_plotter(model_1)
 ```
 
-```{r, cache = TRUE}
+```{r}
 candy_plotter(model_2)
 ```
 
-```{r, cache = TRUE}
+```{r}
 candy_plotter(model_4)
 ```
+
+
+<div class="tocify-extend-page" data-unique="tocify-extend-page" style="height: 0;"></div>
