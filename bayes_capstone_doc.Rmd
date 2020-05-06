@@ -30,8 +30,9 @@ Where $L$ is the model's likehood, and $k$ is the number of parameters in the mo
 
 Given multiple models $i$, you can estimate the probability a model $k$ minimizes information loss as such, where $AIC_{min}$ is the lowest score in the set of models.
 
-
-$$P_k = exp\left(\frac{AIC_{min} - AIC_k}{2}\right)$$
+\[
+p_k = \frac{exp\left(-\frac{1}{2}(AIC_{min} - AIC_k)\right)}{\sum_{i=1}^K exp\left(-\frac{1}{2}(AIC_{min} - AIC_k)\right)}
+\]
 
 AIC fits well in the freqentist frame. The likelihood component is assumed to come from the maximum likelihood estimates of paramters, which Bayesian methods don't select for, and point estimates for parameters are used, instead of using the full posterior distribution.
 
@@ -311,15 +312,12 @@ model_4$coefficients
 
 Once the models are calculated, we calcuate Leave One Out expected log point predictive densities (ELPD LOO) for each model. 
 
-Calculate 
+
+Calculate LOO-IC
 ```{r, cache = TRUE}
-"Model 1 Loo"
 (loo_1 <- loo(model_1))$estimates
-"Model 2 Loo"
 (loo_2 <- loo(model_2))$estimates
-"Model 3 Loo"
 (loo_3 <- loo(model_3))$estimates
-"Model 4 Loo"
 (loo_4 <- loo(model_4))$estimates
 lpd_point <- cbind(
   loo_1$pointwise[,"elpd_loo"], 
@@ -328,6 +326,16 @@ lpd_point <- cbind(
   loo_4$pointwise[,"elpd_loo"]
 )
 ```
+
+For comparison, we'll also display the WAIC for each model.
+```{r}
+waic(model_1)
+waic(model_2)
+waic(model_3)
+waic(model_4)
+```
+
+Notably, the calculation of WAIC is unstable for these models, and shouldn't be trusted. 
 
 With the ELPD calculations, the models are able to be ranked in order of their contribution, as a percentage. As shown, `model3` has the highest weight with 0.534, followed by `model4`. By this metric, `model3` appears to be the best model from the set of 4 we created above.  
 
@@ -484,7 +492,7 @@ kable(comparison_results)
 
 ```
 
-While hard to tell which is better visually, `prediction_summary()` plainly indicates the better model. Due to the use of a weighted average, Pseudo BMA is evidently more accurate than model 3. On average, pseudo-BMA was 2% closer to the actual win percentage of a candy than model 3, (MAE), and 23.5% of the candy's win percentage is within the middle 95% of pseudo-BMA's predictive distribution. 
+While hard to tell which is better visually, `prediction_summary()` plainly indicates the better model. Due to the use of a weighted average, Pseudo BMA is evidently more accurate than model 3. On average, pseudo-BMA was 2% closer to the actual win percentage of a candy than model 3, (MAE), and 23.5% of the candy's win percentage is within the middle 95% of pseudo-BMA's predictive distribution. While the pseudo-BMA predictions are better than the individual models, far more of the candies than should be are outside of the 95% intervals. This means the model vastly overestimates its accuracy, and perhaps another model entirely should be used. 
 
 
 
