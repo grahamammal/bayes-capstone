@@ -398,27 +398,19 @@ As a more visual demonstration of the weights, the contribution of each model is
 
 As shown above, it is evident that the pseudo-BMA model's prediction is heavily reliant on model 3 & 4, with similar $MAP$ values of around 80% for the win percentage for the made up candy. To better understand the advantage of Pseudo-BMA, we can compare its predictions to that of model 3, the 'best' standalone model, using the `ppc_intervals` function.
 
-A sample was generated for this test. 
-```{r}
-set.seed(454)
-sampled_candy <- sample_frac(candy, size = 0.2, replace = FALSE)
-```
-
-
 ```{r, echo = FALSE, cache = TRUE}
 set.seed(454)
-sampled_candy <- sample_frac(candy, size = 0.2, replace = FALSE)
 
 candy_plotter <- function(given_model){
   candy_predictions <- posterior_linpred(
   given_model, 
-  newdata = sampled_candy, transform = TRUE)
+  newdata = candy[1:20,], transform = TRUE)
   
-  graph <- ppc_intervals(sampled_candy$winpercent, 
+  graph <- ppc_intervals(candy$winpercent[1:20], 
                          yrep = candy_predictions, prob_outer = 0.95) +
   scale_x_continuous(
-     labels = sampled_candy$competitorname,
-     breaks = 1:nrow(sampled_candy)
+     labels = candy$competitorname[1:20],
+     breaks = 1:20
   ) +
     lims(y = c(5, 90)) +
     coord_flip() +
@@ -426,51 +418,62 @@ candy_plotter <- function(given_model){
   
   return(graph)
 }
-
 ```
 
 
 ```{r, echo = FALSE, cache = TRUE}
 candy_predictions1 <- posterior_linpred(
   model_1, 
-  newdata = sampled_candy, transform = TRUE)
+  newdata = candy, transform = TRUE)
 candy_predictions2 <- posterior_linpred(
   model_2, 
-  newdata = sampled_candy, transform = TRUE)
-
+  newdata = candy, transform = TRUE)
+candy_predictions3 <- posterior_linpred(
+  model_3, 
+  newdata = candy, transform = TRUE)
 candy_predictions4 <- posterior_linpred(
   model_4, 
-  newdata = sampled_candy, transform = TRUE)
+  newdata = candy, transform = TRUE)
+
+full_pred_list <- list(model_1 = candy_predictions1,
+                    model_2 = candy_predictions2,
+                    model_3 = candy_predictions3,
+                    model_4 = candy_predictions4)
+
+full_pred_df <- full_pred_list %>% 
+  map2(1:4, function(predictions, index) {
+        predictions %>%  
+          data.frame(model = index) %>% 
+          setNames(c(candy$competitorname, "model" ))
+    }) %>% 
+  map2(weights, sample_frac) %>% 
+  bind_rows() %>% 
+  mutate(model = as.character(model))
 
 
-
+full_pred_mat <- full_pred_df %>% 
+  select(-model) %>% 
+  as.matrix()
 ```
 
 
 The mean predictions for the Pseudo-BMA model were obtained by a weighted average of all model predictions. Then Model 3's predictions could be compared visually to the Pseudo-BMA model: 
 ```{r}
-candy_predictions3 <- posterior_linpred(
-  model_3, 
-  newdata = sampled_candy, transform = TRUE)
-
 pred3 <- colMeans(candy_predictions3) #needed to take the mean for plotting, below
-
-pseudo_predictions <- candy_predictions1*weights[1] + candy_predictions2*weights[2] + candy_predictions3*weights[3] + candy_predictions4*weights[4]
-
 ```
 
 
 
 ```{r, cache = TRUE}
-ppc_intervals(sampled_candy$winpercent, 
-yrep = pseudo_predictions, prob_outer = 0.95) +
+ppc_intervals(candy$winpercent[1:20], 
+yrep = full_pred_mat[,1:20], prob_outer = 0.95) +
   ggplot2::scale_x_continuous(
-     labels = sampled_candy$competitorname,
-     breaks = 1:nrow(sampled_candy)
+     labels = candy$competitorname[1:20],
+     breaks = 1:20
   ) +
   lims(y = c(5, 90)) + 
-  geom_point(aes(x = c(1:17), y = pred3), color = 'red') + 
-  labs(title ="Pseudo-BMA model vs Model 3 On 17 Randomly Sampled Candies",
+  geom_point(aes(x = c(1:20), y = pred3[1:20]), color = 'red') + 
+  labs(title ="Pseudo-BMA model vs Model 3 \nOn The First 20 Candies",
        subtitle = 'Red Dots are Model 3 average predictions',
        x = NULL,
        y = "Win Percent") +
@@ -483,23 +486,20 @@ Once again, unsurprisingly, the mean predictions for all 17 candies for `model3`
 
 ```{r}
 
- # rbind(prediction_summary(y = sampled_candy$winpercent, 
-  #yrep = colMeans(pseudo_predictions)),
-  #      prediction_summary(y = sampled_candy$winpercent, 
-  #yrep = candy_predictions_3))
 
-comparison_results <- tibble(
-  model = c('Pseudo-BMA', 'Model 3'),
-  mae = c(22.25264, 24.55274),
-  mae_scaled = c(0.7003848,5.5119684),
-  within_50 = c(0.17647059, 0.05882353),
-  within_95 = c(0.2352941	, 0.1764706	)
-)
-
-kable(comparison_results)
+bind_rows(prediction_summary(y = candy$winpercent,
+                   yrep = candy_predictions3) %>% 
+            mutate(model = "Model 3") %>% 
+            select(model, everything()),
+          
+prediction_summary(y = candy$winpercent,
+                   yrep = full_pred_mat) %>% 
+  mutate(model = "Combined Model")
+) %>% 
+kable()
 ```
 
-While hard to tell which is better visually, `prediction_summary()` plainly indicates the better model. Due to the use of a weighted average, Pseudo BMA is evidently more accurate than model 3. On average, pseudo-BMA was 2% closer to the actual win percentage of a candy than model 3, (MAE), and 23.5% of the candy's win percentage is within the middle 95% of pseudo-BMA's predictive distribution. While the pseudo-BMA predictions are better than the individual models, far more of the candies than should be are outside of the 95% intervals. This means the model vastly overestimates its accuracy, and perhaps another model entirely should be used. 
+While hard to tell which is better visually, `prediction_summary()` plainly indicates the better model. Due to the use of a weighted average, Pseudo BMA is evidently more accurate than model 3. On average, pseudo-BMA was closer to the actual win percentage of a candy than model 3, (MAE), and 57.6% of the candy's win percentage is within the middle 95% of pseudo-BMA's predictive distribution. While the pseudo-BMA predictions are better than the individual models, far more of the candies than should be are outside of the 95% intervals. This means the model vastly overestimates its accuracy, and perhaps another model entirely should be used. 
 
 
 
