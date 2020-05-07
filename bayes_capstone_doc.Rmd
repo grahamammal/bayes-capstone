@@ -17,29 +17,24 @@ Model specification is an element of statistics whose importance is often glosse
 
 ### Information Criterion
 
-Information Criterion are commonly used to select the 'best' model from a set or to understand how much better one model is compared to another. They can be thought of as trying to estimate how good the model is at fitting out of sample data, when no such data is available. All of these criterion consist of a likelihood component, which estimates how good the model is at fitting within sample data, and a bias corrector, to account for how models are usually better at fitting within sample data than out of sample data. For all information criterion, a lower score is better. They can only be directly compared to themselves. Note that the mathematical conventions for the following sections will be as such: $L$ is the model's likehood function, $k$ is the number of parameters in the model, $n$ is the number of data points, and $M$ is a specific model.
+Information Criterion are commonly used to select the 'best' model from a set or to understand how much better one model is compared to another. They can be thought of as trying to estimate how good the model is at fitting out of sample data, when no such data is available. All of these criterion consist of a likelihood component, which estimates how good the model is at fitting within sample data, and a bias corrector, to account for how models are usually better at fitting within sample data than out of sample data. For all information criterion, a lower score is better. They can only be directly compared to themselves.  
 
 #### Akaike Information Criterion
 
 The Akaike Information Criterion (AIC) is the simplest information criterion, and the most commonly used:
 
-$$AIC_M = -2 ln(L) + 2k$$
+$$AIC = -2 ln(L) + 2k$$
 
-Given multiple models, you can estimate the probability a model $M$ minimizes information loss as such, where $AIC_{min}$ is the lowest score in the set of models. AIC is traditionally used when a test set is not as feasible, such as with small datasets or with time series. AIC first fits model $M$ to the training data, then regularizes by the complexity of the model, given $k$ parameters. It is thus the models with the lowest AIC score than have the best balance of data fit and parameter simplicity. 
+Where $L$ is the model's likehood, and $k$ is the number of parameters in the model. Because more parameters allow a model to fit better to within sample data, it is used as the bias corrector. 
 
-### cite https://towardsdatascience.com/introduction-to-aic-akaike-information-criterion-9c9ba1c96ced
 
-Given small sample sizes, it is more likely to use AICc, essentially AIC with an additional penality term:
-
-$$AICc_M = AIC_M + \frac{2k^2 + 2k}{n - k -1}$$
-
-## then we can remove this eqn below
+Given multiple models $i$, you can estimate the probability a model $k$ minimizes information loss as such, where $AIC_{min}$ is the lowest score in the set of models.
 
 \[
 p_k = \frac{exp\left(-\frac{1}{2}(AIC_{min} - AIC_k)\right)}{\sum_{i=1}^K exp\left(-\frac{1}{2}(AIC_{min} - AIC_k)\right)}
 \]
 
-AIC fits well in the freqentist frame. The likelihood component is assumed to come from the maximum likelihood estimates of paramters, which Bayesian methods do not select for, and point estimates for parameters are used, instead of using the full posterior distribution.
+AIC fits well in the freqentist frame. The likelihood component is assumed to come from the maximum likelihood estimates of paramters, which Bayesian methods don't select for, and point estimates for parameters are used, instead of using the full posterior distribution.
 
 #### Bayesian Information Criterion
 
@@ -48,7 +43,7 @@ The misleadingly named Bayesian Information Criterion (BIC), is given by:
 $$BIC  = - 2ln(L) + k\;ln(n)$$
 Where $k$ is the number of parameters in the model, $n$ is the number of data points, and $L$ is again the likelihood function. 
 
-BIC penalizes free parameters more than the AIC when data sets are large. While AIC tries to select the best model that describes the data presented, the BIC attempts to select the *true* model from among a model set. However, like AIC, BIC does not naturally fit with the Bayesian framework as it is scored by the likelihood function. 
+BIC penalizes free parameters more than the AIC when data sets are large. While AIC tries to select the best model that describes the data presented, the BIC attempts to select the *true* model from among a model set. However, like AIC, BIC doesn't naturally fit with the Bayesian framework as it is scored by the likelihood function. 
 
 
 ### cite this with https://www.statisticshowto.com/bayesian-information-criterion/
@@ -86,9 +81,7 @@ Then, the posterior probability of model specification $M_k$ is $$\pi(M_k | Y) =
 
 Traditional BMA is not without issues. For example, changing priors from one vague prior to another can significantly impact posterior model probablities. And calculating model likelihoods becomes extremely diffiuclt for anything but the simplest models. 
 
-As a result of these issues, a method called *Pseudo-BMA* was created. This has the same core idea as BMA, but instead of calculating model likelhoods, something called Leave-One-Out cross validation  (LOO-CV) is used.
-
-### cite yaovehtari paper here
+As a result of these issues, a method called *Pseudo-BMA* was created. This has the same core idea as BMA, but instead of calculating model likelhoods, something called Leave-One-Out cross validation  (LOO-CV) is used. ***cite yaovehtari paper here**
 
 
 Similar to the information criterion, LOO-CV estimates how good a model is at predicting out of sample data. To do this, it fits the model on all but one data points, then checks how well it predicts the missing data point. The log of this probability is used This is done for every data point in the sample. 
