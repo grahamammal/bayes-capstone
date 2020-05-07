@@ -29,8 +29,10 @@ $$AIC_M = -2 ln(L) + 2k$$
 
 Given multiple models, you can estimate the probability a model $M$ minimizes information loss as such, where $AIC_{min}$ is the lowest score in the set of models. AIC is traditionally used when a test set is not as feasible, such as with small datasets or with time series. AIC first fits model $M$ to the training data, then regularizes by the complexity of the model, given $k$ parameters. It is thus the models with the lowest AIC score than have the best balance of data fit and parameter simplicity. 
 
+The AIC can be used to obtain a probabilistic measure of information maximization, by exponentiating the AIC scores for a particular model compared to the minimum AIC score of the set of models, $AIC_{min}$. This provides a probability $p_M$ that a particular model minimizes information loss, relative to all the other models tested. Understandably, using the model with $AIC_{min}$ returns $p_M = 1$.
+
 \[
-p_k = \frac{exp\left(-\frac{1}{2}(AIC_{min} - AIC_k)\right)}{\sum_{i=1}^K exp\left(-\frac{1}{2}(AIC_{min} - AIC_k)\right)}
+p_M = \frac{exp\left(-\frac{1}{2}(AIC_{min} - AIC_k)\right)}{\sum_{i=1}^K exp\left(-\frac{1}{2}(AIC_{min} - AIC_k)\right)}
 \]
 
 AIC fits well in the freqentist frame. The likelihood component is assumed to come from the maximum likelihood estimates of paramters, which Bayesian methods do not select for, and point estimates for parameters are used, instead of using the full posterior distribution. [@AICintro]
@@ -361,7 +363,7 @@ formattable(mod4, align=c("l"), col.names=c("Coefficient"))
 ```
 
 
-### Model Evaluations using ELPD
+### Model Evaluations using LOO-CV
 
 Once the models are calculated, we calcuate Leave One Out expected log point predictive densities (ELPD LOO) for each model. These are shown below, transformed onto the information criterion scale. 
 
@@ -567,7 +569,9 @@ yrep = full_pred_mat[,1:20], prob_outer = 0.95) +
   coord_flip()
 ```
 
-Once again, unsurprisingly, the mean predictions for all 17 candies for Model 3 and the pseudo-BMA weighted average are fairly close. However, evident for *Baby Ruth, Nestle Butterfinger, and Reese's Peanut Butter Cup* the pseudo-BMA weighted average model is slightly closer to the actual win percentage. In other cases, like *Sour Patch Kids, Reese's Miniatures, and Air Heads*, model 3 appears to have better predictions. 
+
+As shown by the plot of the first 20 candies, the predictions for model 3 and the pseudo-BMA  are fairly close, which makes sense given th weighted average nature of the pseudo-BMA model. It is interesting to note the variation in these model results, however, such as with *Dum Dums, Fun Dip*, we see that model 3 is more accurate in predicting win percentage. Out of these visual summary, however, the data seems to indicate that the pseudo-BMA model was on average much closer to the actual win percentage than model 3. 
+
 
 ### Numerical Comparison of Model Strength
 

@@ -60,3 +60,166 @@ w_k = \frac{exp(\widehat{elpd}^k)}{\sum_{k=1}^Kexp(\widehat{elpd}^k)}
 In practice, one more step involving bootstrapping is used to deal with additional bias in the estimate. This final model weight $w_k$ is the approximate probability of model k being to true model.  
 
 
+
+
+
+### Predictions 
+
+A new type of candy is created (`new_candy`), which is turned into a dataframe for prediction. A table of predictions for all models is then created, titled `predictions`. 
+
+```{r}
+new_candy <- data.frame(chocolate = TRUE, fruity = TRUE, caramel = TRUE, peanutyalmondy = TRUE, nougat = TRUE, crispedricewafer = TRUE, hard = FALSE, bar = FALSE, 
+                        pluribus = FALSE, sugarpercent = 0.20, pricepercent = 0.9)
+my_predict <- function(model) {
+  posterior_predict(model, newdata = new_candy)
+}
+make_df <- function(predictions, index) {
+  data.frame(winpercent_new = predictions[,1], model = index)
+}
+predictions <- map(model_list, my_predict) %>% 
+  map2(1:4, make_df)
+
+```
+
+
+Using the `weights` we calculated from using the `pseudobma_weights()` function to obtain ELPD scores, we can then generate the predictive distributions for the win percentage of our made up candy, defined above. 
+```{r}
+sampled_pred <- predictions %>%  #calculating sample predictions for each model 
+  map2(weights, sample_frac) %>% 
+  bind_rows() %>% 
+  mutate(model = as.character(model))
+```
+
+
+```{r}
+sampled_pred %>% 
+  ggplot(aes(x = winpercent_new, fill = model, color = model)) +
+  geom_density_ridges(alpha = 0.2, aes(y = model)) + labs(title = 'Posterior Predictive Distributions for our Generated Candy')
+```
+
+Unsurprisingly, the different models provided slightly different predictions. The $MAP$ 'winpercent' for `model`, `model2` appear to be closer to 45-50%, while the `model3`, `model4` show a  'winpercent' of closer to 80%. 
+
+```{r}
+sampled_pred %>% 
+  ggplot(aes(x = winpercent_new, fill = model, color = model)) +
+  geom_histogram(alpha = 0.9, position = "stack")
+```
+
+As a more visual demonstration of the weights, the contribution of each model is evident in the predictive distribution, with model 3 contributing the largest, followed by model 4. Thus, it is not surprising that the pseudo-BMA model also has an $MAP$ of around 80%, given the dominance of `model3` in the weighted averaging. 
+
+
+### Pseudo-BMA vs. Single Model Performance
+
+As shown above, it is evident that the pseudo-BMA model's prediction is heavily reliant on model 3 & 4, with similar $MAP$ values of around 80% for the win percentage for the made up candy. To better understand the advantage of Pseudo-BMA, we can compare its predictions to that of model 3, the 'best' standalone model, using the `ppc_intervals` function.
+
+```{r, echo = FALSE}
+set.seed(454)
+sampled_candy <- sample_frac(candy, size = 0.2, replace = FALSE)
+
+candy_plotter <- function(given_model){
+  candy_predictions <- posterior_linpred(
+  given_model, 
+  newdata = sampled_candy, transform = TRUE)
+  
+  graph <- ppc_intervals(sampled_candy$winpercent, 
+yrep = candy_predictions, prob_outer = 0.95) +
+  ggplot2::scale_x_continuous(
+     labels = sampled_candy$competitorname,
+     breaks = 1:nrow(sampled_candy)
+  ) +
+  xaxis_text(angle = 90, vjust = 1, hjust = 0) + 
+  lims(y = c(5, 90))
+  
+  return(graph)
+}
+
+```
+
+
+```{r, echo = FALSE}
+candy_predictions1 <- posterior_linpred(
+  model_1, 
+  newdata = sampled_candy, transform = TRUE)
+candy_predictions2 <- posterior_linpred(
+  model_2, 
+  newdata = sampled_candy, transform = TRUE)
+candy_predictions3 <- posterior_linpred(
+  model_3, 
+  newdata = sampled_candy, transform = TRUE)
+candy_predictions4 <- posterior_linpred(
+  model_4, 
+  newdata = sampled_candy, transform = TRUE)
+
+pseudo_predictions <- candy_predictions1*weights[1] + candy_predictions2*weights[2] + candy_predictions3*weights[3] + candy_predictions4*weights[4]
+
+
+pred3 <- colMeans(candy_predictions3)
+
+
+```
+
+
+```{r, echo  = FALSE}
+ppc_intervals(sampled_candy$winpercent, 
+yrep = pseudo_predictions, prob_outer = 0.95) +
+  ggplot2::scale_x_continuous(
+     labels = sampled_candy$competitorname,
+     breaks = 1:nrow(sampled_candy)
+  ) +
+  xaxis_text(angle = 90, vjust = 1, hjust = 0) + 
+  lims(y = c(5, 90)) + geom_point(aes(x = c(1:17), y = pred3), color = 'red') + labs(title ="Pseudo-BMA model vs Model 3 On 17 Randomly Sampled Candies",
+                                                                                     subtitle = 'Red Dots are Model 3 average predictions')
+```
+
+Once again, unsurprisingly, the mean predictions for all 17 candies for `model3` and the pseudo-BMA weighted average are fairly close. However, evident for *Baby Ruth, Nestle Butterfinger, and Reese's Peanut Butter Cup* the pseudo-BMA weighted average model is slightly closer to the actual win percentage. In other cases, like *Sour Patch Kids, Reese's Miniatures, and Air Heads*, model 3 appears to have better predictions. 
+
+
+**A Comparison of Pseudo-BMA and Model 3 Accuracy**
+```{r}
+
+ # rbind(prediction_summary(y = sampled_candy$winpercent, 
+  #yrep = colMeans(pseudo_predictions)),
+  #      prediction_summary(y = sampled_candy$winpercent, 
+  #yrep = candy_predictions_3))
+
+tibble(
+  model = c('Pseudo-BMA', 'Model 3'),
+  mae = c(22.25264, 24.55274),
+  mae_scaled = c(0.7003848,5.5119684),
+  within_50 = c(0.17647059, 0.05882353),
+  within_95 = c(0.2352941	, 0.1764706	)
+)
+
+```
+
+While hard to tell which is better visually, `prediction_summary()` plainly indicates the better model. Due to the use of a weighted average, Pseudo BMA is evidently more accurate than model 3. On average, pseudo-BMA was 2% closer to the actual win percentage of a candy than model 3, (MAE), and 23.5% of the candy's win percentage is within the middle 95% of pseudo-BMA's predictive distribution. 
+
+
+
+## Conclusion(?)
+
+
+The concept of taking a weighted average of the predictions from multiple models is not a new technique, given the obvious benefits of increased flexibility and robustness to predictions. However, weighted averages are predominantly seen in Frequentist approaches to modelling, and less so in the Bayesian approach. Bayesian Model Averaging, and more specifically Pseudo-BMA, is a more computationally efficient method to evaluate each model's predictive distribution, assigning ELPD scores for each model. ELPD, as fractional indication of model weight, allows for predictions from each model to be combined in a manner that provides the optimal predictive distribution, a Pseudo-BMA model. As shown by the candy dataset, Pseudo-BMA naturally outperforms the best single-model calculated, and could only improve with even more models tested. 
+
+
+
+## Appendix Section:
+
+
+
+#### PPC Interval Graphs for models 1,2,4:
+Models graphed in that order:
+
+```{r}
+candy_plotter(model_1)
+```
+
+```{r}
+candy_plotter(model_2)
+```
+
+```{r}
+candy_plotter(model_4)
+```
+
+
