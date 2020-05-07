@@ -29,14 +29,6 @@ $$AIC_M = -2 ln(L) + 2k$$
 
 Given multiple models, you can estimate the probability a model $M$ minimizes information loss as such, where $AIC_{min}$ is the lowest score in the set of models. AIC is traditionally used when a test set is not as feasible, such as with small datasets or with time series. AIC first fits model $M$ to the training data, then regularizes by the complexity of the model, given $k$ parameters. It is thus the models with the lowest AIC score than have the best balance of data fit and parameter simplicity. 
 
-### cite https://towardsdatascience.com/introduction-to-aic-akaike-information-criterion-9c9ba1c96ced
-
-Given small sample sizes, it is more likely to use AICc, essentially AIC with an additional penality term:
-
-$$AICc_M = AIC_M + \frac{2k^2 + 2k}{n - k -1}$$
-
-## then we can remove this eqn below
-
 \[
 p_k = \frac{exp\left(-\frac{1}{2}(AIC_{min} - AIC_k)\right)}{\sum_{i=1}^K exp\left(-\frac{1}{2}(AIC_{min} - AIC_k)\right)}
 \]
@@ -50,14 +42,8 @@ The misleadingly named Bayesian Information Criterion (BIC), is given by:
 $$BIC  = - 2ln(L) + k\;ln(n)$$
 Where $k$ is the number of parameters in the model, $n$ is the number of data points, and $L$ is again the likelihood function. 
 
-<<<<<<< HEAD
 BIC penalizes free parameters more than the AIC when data sets are large. While AIC tries to select the best model that describes the data presented, the BIC attempts to select the *true* model from among a model set. However, like AIC, BIC doesn't naturally fit with the Bayesian framework as it is scored by the likelihood function. [@StatisticsHowTo]
-=======
-BIC penalizes free parameters more than the AIC when data sets are large. While AIC tries to select the best model that describes the data presented, the BIC attempts to select the *true* model from among a model set. However, like AIC, BIC does not naturally fit with the Bayesian framework as it is scored by the likelihood function. 
 
-
-### cite this with https://www.statisticshowto.com/bayesian-information-criterion/
->>>>>>> 9f08d42d8228b93998b627b1147e428a6782d0d3
 
 
 #### Widely Applicable Information Criterion
@@ -86,15 +72,9 @@ Then, the posterior probability of model specification $M_k$ is $$\pi(M_k | Y) =
 
 ### Pseudo-Bayesian Model Averaging
 
-<<<<<<< HEAD
 Traditional BMA is not without issues. For example, changing priors from one vague prior to another can significantly impact posterior model probablities. In addition, calculating model likelihoods becomes extremely difficult for anything but the simplest models.
-=======
-Traditional BMA is not without issues. For example, changing priors from one vague prior to another can significantly impact posterior model probablities. And calculating model likelihoods becomes extremely diffiuclt for anything but the simplest models. 
 
 As a result of these issues, a method called *Pseudo-BMA* was created. This has the same core idea as BMA, but instead of calculating model likelhoods, something called Leave-One-Out cross validation  (LOO-CV) is used.
-
-### cite yaovehtari paper here
->>>>>>> 9f08d42d8228b93998b627b1147e428a6782d0d3
 
 As a result of these issues, a method called *Pseudo-BMA* was created. This has the same core idea as BMA, but instead of calculating model likelhoods, something called Leave-One-Out cross validation  (LOO-CV) is used [@YaoVehtari]. 
 
@@ -199,10 +179,14 @@ prediction_summary <- function(y, yrep, prob_inner = 0.5, prob_outer = 0.95){
 }
 ```
 
-```{r include=FALSE}
+```{r}
 candy <- fivethirtyeight::candy_rankings
 pal <- wes_palette("Darjeeling1", 20, type = "continuous")
 pal
+
+pal2 <- wes_palette("Darjeeling1", 4, type = "discrete")
+pal2
+
 ```
 
 ### Data 
@@ -430,7 +414,6 @@ waics <- as.data.frame(cbind(waic_1, waic_2, waic_3, waic_4))
 ```
 
 ```{r}
-
 formattable(waics,align=c("l"), col.names=c("Model 1", "Model 2", "Model 3", "Model 4"))
 ```
 
@@ -476,8 +459,8 @@ predictions %>%
   bind_rows() %>% 
   ggplot(aes(x = winpercent_new, fill = as.character(model), color = as.character(model))) +
   geom_density_ridges(alpha = 0.6, aes(y = reorder(as.character(model), -model))) + labs(title = 'Posterior Predictive Distributions for The Four Models', y = "Model", x = "Predicted Percent of Wins")  +
-  scale_fill_manual(values = pal) +
-  scale_color_manual(values = pal) + 
+  scale_fill_manual(values = pal2) +
+  scale_color_manual(values = pal2) + 
   theme(legend.position = "none")
 ```
 
@@ -486,16 +469,14 @@ Unsurprisingly, the different models provided slightly different predictions. Th
 
 ```{r}
 sampled_pred %>% 
-  ggplot(aes(x = winpercent_new, fill = model, color=model)) +
-  geom_histogram(alpha = 0.5, 
+  ggplot(aes(x = winpercent_new, fill = as.character(model), color=as.character(model))) +
+  geom_histogram(alpha=0.8,
                  position = position_stack(),
                  binwidth = 5, 
                  boundary = 0) +
-  facet_wrap(~model)+
   labs(x = "Predicted Percent of Wins", y = "Draws", fill = "Model", color = "Model") +
-  scale_fill_manual(values = pal) +
-  scale_color_manual(values = pal) + 
-  theme(legend.position = "none")
+  scale_fill_manual(values = pal2) +
+  scale_color_manual(values = pal2)
 ```
 
 As a more visual demonstration of the weights, the contribution of each model is evident in the predictive distribution, with model 3 contributing the largest, followed by model 4. Thus, it is not surprising that the pseudo-BMA model also has an $MAP$ of around 80%, given the dominance of Model 3 in the weighted averaging. 
