@@ -363,7 +363,7 @@ formattable(mod4, align=c("l"), col.names=c("Coefficient"))
 
 ### Model Evaluations using ELPD
 
-Once the models are calculated, we calcuate Leave One Out expected log point predictive densities (ELPD LOO) for each model. These are shown below. 
+Once the models are calculated, we calcuate Leave One Out expected log point predictive densities (ELPD LOO) for each model. These are shown below, transformed onto the information criterion scale. 
 
 ```{r, cache = TRUE, results=FALSE}
 (loo_1 <- loo(model_1))$estimates
