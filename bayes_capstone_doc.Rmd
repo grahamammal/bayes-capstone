@@ -1,7 +1,8 @@
 ---
 title: "Bayes Capstone: (Pseudo) Bayesian Model Averaging"
-author: "Ellen Graham, Ester Swehla, Josh Upadhyay"
+author: "Ellen Graham, Esther Swehla, Josh Upadhyay"
 date: "5/1/2020"
+bibliography: Library.bib
 output: 
   html_document:
     toc: true
@@ -12,29 +13,35 @@ output:
 
 ## Introduction to Common Model Selection Critera
 
-Model specification is an element of statistics whose importance is often glossed over. In most cases, there are multiple appropriate models for a set of data. The end choice of model can hugely impact the results, and classical methods offer limited guidance on the best process for accounting for the uncertainty this creates. Unstructured searches and checks for the best model specification can lead to incorrect inferences, fragile reported findings, and publication bias [@Montgomery]. Frequentist approaches to model selection include but are not limited to general using the Akaike Information Criterion (AIC) and using the root mean squared error (RMSE) or R^2. We will thus elaborate a little on AIC and two other common information criterion, BIC and WAIC. 
+Model specification is an element of statistics whose importance is often glossed over. In most cases, there are multiple appropriate models for a set of data. The end choice of model can hugely impact the results, and classical methods offer limited guidance on the best process for accounting for the uncertainty this creates. Unstructured searches and checks for the best model specification can lead to incorrect inferences, fragile reported findings, and publication bias [@Montgomery]. Frequentist approaches to model selection include but are not limited to using the Akaike Information Criterion (AIC) and using the root mean squared error (RMSE) or R^2. We will thus elaborate a little on AIC and two other common information criterion, BIC and WAIC. 
 
 
 ### Information Criterion
 
-Information Criterion are commonly used to select the 'best' model from a set or to understand how much better one model is compared to another. They can be thought of as trying to estimate how good the model is at fitting out of sample data, when no such data is available. All of these criterion consist of a likelihood component, which estimates how good the model is at fitting within sample data, and a bias corrector, to account for how models are usually better at fitting within sample data than out of sample data. For all information criterion, a lower score is better. They can only be directly compared to themselves.  
+Information Criterion are commonly used to select the 'best' model from a set or to understand how much better one model is compared to another. They can be thought of as trying to estimate how good the model is at fitting out of sample data, when no such data is available. All of these criterion consist of a likelihood component, which estimates how good the model is at fitting within sample data, and a bias corrector, to account for how models are usually better at fitting within sample data than out of sample data. For all information criterion, a lower score is better. They can only be directly compared to themselves. Note that the mathematical conventions for the following sections will be as such: $L$ is the model's likehood function, $k$ is the number of parameters in the model, $n$ is the number of data points, and $M$ is a specific model.
+
 
 #### Akaike Information Criterion
 
 The Akaike Information Criterion (AIC) is the simplest information criterion, and the most commonly used:
 
-$$AIC = -2 ln(L) + 2k$$
+$$AIC_M = -2 ln(L) + 2k$$
 
-Where $L$ is the model's likehood, and $k$ is the number of parameters in the model. Because more parameters allow a model to fit better to within sample data, it is used as the bias corrector. 
+Given multiple models, you can estimate the probability a model $M$ minimizes information loss as such, where $AIC_{min}$ is the lowest score in the set of models. AIC is traditionally used when a test set is not as feasible, such as with small datasets or with time series. AIC first fits model $M$ to the training data, then regularizes by the complexity of the model, given $k$ parameters. It is thus the models with the lowest AIC score than have the best balance of data fit and parameter simplicity. 
 
+### cite https://towardsdatascience.com/introduction-to-aic-akaike-information-criterion-9c9ba1c96ced
 
-Given multiple models $i$, you can estimate the probability a model $k$ minimizes information loss as such, where $AIC_{min}$ is the lowest score in the set of models.
+Given small sample sizes, it is more likely to use AICc, essentially AIC with an additional penality term:
+
+$$AICc_M = AIC_M + \frac{2k^2 + 2k}{n - k -1}$$
+
+## then we can remove this eqn below
 
 \[
 p_k = \frac{exp\left(-\frac{1}{2}(AIC_{min} - AIC_k)\right)}{\sum_{i=1}^K exp\left(-\frac{1}{2}(AIC_{min} - AIC_k)\right)}
 \]
 
-AIC fits well in the freqentist frame. The likelihood component is assumed to come from the maximum likelihood estimates of paramters, which Bayesian methods don't select for, and point estimates for parameters are used, instead of using the full posterior distribution.
+AIC fits well in the freqentist frame. The likelihood component is assumed to come from the maximum likelihood estimates of paramters, which Bayesian methods do not select for, and point estimates for parameters are used, instead of using the full posterior distribution.
 
 #### Bayesian Information Criterion
 
@@ -43,28 +50,30 @@ The misleadingly named Bayesian Information Criterion (BIC), is given by:
 $$BIC  = - 2ln(L) + k\;ln(n)$$
 Where $k$ is the number of parameters in the model, $n$ is the number of data points, and $L$ is again the likelihood function. 
 
-BIC penalizes free parameters more than the AIC when data sets are large. While AIC tries to select the best model that describes the data presented, the BIC attempts to select the *true* model from among a model set. However, like AIC, BIC doesn't naturally fit with the Bayesian framework as it is scored by the likelihood function. 
+<<<<<<< HEAD
+BIC penalizes free parameters more than the AIC when data sets are large. While AIC tries to select the best model that describes the data presented, the BIC attempts to select the *true* model from among a model set. However, like AIC, BIC doesn't naturally fit with the Bayesian framework as it is scored by the likelihood function. [@StatisticsHowTo]
+=======
+BIC penalizes free parameters more than the AIC when data sets are large. While AIC tries to select the best model that describes the data presented, the BIC attempts to select the *true* model from among a model set. However, like AIC, BIC does not naturally fit with the Bayesian framework as it is scored by the likelihood function. 
 
 
 ### cite this with https://www.statisticshowto.com/bayesian-information-criterion/
+>>>>>>> 9f08d42d8228b93998b627b1147e428a6782d0d3
 
 
 #### Widely Applicable Information Criterion
 
 One information criterion that fits naturally within the Bayesian framework is the Widely Applicable Information Criterion (WAIC):
 
-\[WAIC = -2\sum_{i=1}^nlog\left(\frac{1}{S}\sum_{s=1}^S p(y_i\vert\theta^s) \right) +2\sum_{i=1}^nV_{s=1}^S(log(p(y_i\vert\theta^s)))\]
+\[WAIC = -2\sum_{i=1}^nlog\left(\frac{1}{S}\sum_{s=1}^S \pi(y_i\vert\theta^s) \right) +2\sum_{i=1}^nV_{s=1}^S(log(\pi(y_i\vert\theta^s)))\]
 
 Where $S$ is the number of posterior draws, $\theta^s$ is the s-th posterior draw for parameters $theta$, and $V^S_{s=1}(a_s)$ is the sample variance of $a_s$.
 
-The first half of WAIC uses the posterior distribution of $\theta$, as opposed to only likelihood estimates for theta as are used in AIC and BIC.  This means that the WAIC is fully Bayesian. The second half is the bias corrector which can be thought of as the number of unconstrained parameters accounting for the complex ways Bayesian parameters interact. 
-
-###http://www.jmlr.org/papers/volume14/watanabe13a/watanabe13a.pdf not sure how to cite but let's cite this info 
+The first half of WAIC uses the posterior distribution of $\theta$, as opposed to only likelihood estimates for theta as are used in AIC and BIC.  This means that the WAIC is fully Bayesian. The second half is the bias corrector which can be thought of as the number of unconstrained parameters accounting for the complex ways Bayesian parameters interact. [@Watanbe]
 
 
 ## Bayesian Model Averaging 
 
-Bayesian Model Averaging (BMA) offers an alternative practice that helps ensure findings are robust to a variety of model specifications. At its simplest level, BMA assigns priors to potential model specifications and then caluclates posterior distributions for the model itself, in addition to the coefficients within the specification. This is thus an extension of previous Bayesian theory that focuses solely on coefficient estimation. 
+Bayesian Model Averaging (BMA) offers an alternative to information criterion that helps ensure findings are robust to a variety of model specifications. At its simplest level, BMA assigns priors to potential model specifications and then caluclates posterior distributions for the model itself, in addition to the coefficients within the specification. This is thus an extension of previous Bayesian theory that focuses solely on coefficient estimation. 
 
 Let us begin by considering a matrix $X$ of all the $n \times p$ potential independent variables to predict a response variable $Y$. A standard linear analysis would assume $Y = X \beta + \epsilon$, where $\beta$ is a coefficient matrix and $\epsilon$ ~ $N(0, \sigma^2)$. There are $q=2^p$ potential model specifications from the model space $\{M_1, M_2, ...M_q\}$, and in many cases, there is ambiguity about which of these is best. BMA incorporates this uncertainty into the process rather than ignoring it and claiming that the final model is the only option. This leads to greater flexibility in the inferences of the end results [@Montgomery]. 
 
@@ -72,24 +81,29 @@ Each model $M_k$ encompasses the likelihood function $L(Y|\beta_k, M_k)$ of the 
 
 The above denominator represents the marginal distribution of the observations over all paramteter values specified in model $M_k$. It is called the model's marginal likelihood or model evidence and is denoted by $\pi(Y|M_k)$. BMA now assumes a prior distribution over the model space describing the prior uncertainty over each model's capability to accurately describe and/or predict the data. This is modeled as a probability density over the model space, with values $\pi(M_k)$ for $k = 1, 2, ... q$ [@Fragoso]. 
 
-Then, the posterior probability of model specification $M_k$ is $$\pi(M_k | Y) = \frac{L(M_k | Y) \; \pi(M_k)}{\sum_{k=0}^q \; \pi(Y|M_k)\; \pi(M_k)}$$. 
-
-### cite Yao Vehtari paper here 
+Then, the posterior probability of model specification $M_k$ is $$\pi(M_k | Y) = \frac{L(M_k | Y) \; \pi(M_k)}{\sum_{k=0}^q \; \pi(Y|M_k)\; \pi(M_k)}$$. [@YaoVehtari]
 
 
 ### Pseudo-Bayesian Model Averaging
 
+<<<<<<< HEAD
+Traditional BMA is not without issues. For example, changing priors from one vague prior to another can significantly impact posterior model probablities. In addition, calculating model likelihoods becomes extremely difficult for anything but the simplest models.
+=======
 Traditional BMA is not without issues. For example, changing priors from one vague prior to another can significantly impact posterior model probablities. And calculating model likelihoods becomes extremely diffiuclt for anything but the simplest models. 
 
-As a result of these issues, a method called *Pseudo-BMA* was created. This has the same core idea as BMA, but instead of calculating model likelhoods, something called Leave-One-Out cross validation  (LOO-CV) is used. ***cite yaovehtari paper here**
+As a result of these issues, a method called *Pseudo-BMA* was created. This has the same core idea as BMA, but instead of calculating model likelhoods, something called Leave-One-Out cross validation  (LOO-CV) is used.
 
+### cite yaovehtari paper here
+>>>>>>> 9f08d42d8228b93998b627b1147e428a6782d0d3
 
-Similar to the information criterion, LOO-CV estimates how good a model is at predicting out of sample data. To do this, it fits the model on all but one data points, then checks how well it predicts the missing data point. The log of this probability is used This is done for every data point in the sample. 
+As a result of these issues, a method called *Pseudo-BMA* was created. This has the same core idea as BMA, but instead of calculating model likelhoods, something called Leave-One-Out cross validation  (LOO-CV) is used [@YaoVehtari]. 
 
-Put mathematically given S simulation draws , this is:
+Similar to the information criterion, LOO-CV estimates how good a model is at predicting out of sample data. To do this, it fits the model on all but one data points, then checks how well it predicts the missing data point. This is then repeated for every data point in the sample. 
+
+Put mathematically given S simulation draws, this is:
 
 \[
-\sum_{i=1}^nlog(p(y_i\vert y_1,\dots y_{i-1},y_{i+1},y_n)) 
+\sum_{i=1}^nlog(\pi(y_i\vert y_1,\dots y_{i-1},y_{i+1},y_n)) 
 \]
 
 Where the term in the $log$ is the probability of seeing $y_i$ from a model trained on all the data excluding $y_i$. 
@@ -98,7 +112,7 @@ By adding a complicated bias term, this can be turned into an information criter
 
 While exact LOO requires $n$ iterations, one for each point in $y$, Pseudo-BMA reduces computational complexity by taking samples from the posterior distribution. Using a technique called Pareto Smoothed Importance Sampling (PSIS), LOO-CV is estimated. This method also allows Pseudo-BMA to be used on models with parameters that have already been fitted. 
 
-Given a dataset $y$, models $M_k$, weights $w_{i,k}^s$, and parameters$\Theta$, PSIS-LOO is an efficent way to approximate the estimate of the expected log pointwise predictive density for model k, which is the measure of how good model k is at fitting out of sample data:
+Given a dataset $y$, models $M_k$, weights $w_{i,k}^s$, and parameters $\theta$, PSIS-LOO is an efficent way to approximate the estimate of the expected log pointwise predictive density for model k, which is the measure of how good model k is at fitting out of sample data:
 
 \[
 \widehat{elpd}^k=\sum_{i=1}^n log(\hat{p} (y_i | y_1,\dots y_{i-1},y_{i+1},y_n, M_K))
@@ -112,19 +126,18 @@ This is similar to model probabilities using AIC, model probabilities are calcul
 w_k = \frac{exp(\widehat{elpd}^k)}{\sum_{k=1}^Kexp(\widehat{elpd}^k)}
 \]
 
-In practice, one more step involving bootstrapping is used to deal with additional bias in the estimate. This final model weight $w_k$ is the approximate probability of model k being to true model.  
+In practice, one more step involving bootstrapping is used to deal with additional bias in the estimate. This final model weight $w_k$ is the approximate probability of model k being the true model.  
 
 These model probabilities can be used in a variety of ways. For example, BMA allows for a direct combination of models to calculate combined estimations for parameters, which leads to lower risk predictions than a single model [@Fragoso]. In addition, BMA can be used in model selection by choosing the model with the highest posterior probability. We will focus on this latter application. 
 
+## Example context
 
-
-## Implementation
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning=FALSE, error=FALSE)
 ```
 
-```{r, message=FALSE}
+```{r libraries, message=FALSE}
 library(ggplot2)
 library(dplyr)
 library(rstan)
@@ -136,13 +149,16 @@ library(ggridges)
 library(purrr)
 library(gridExtra)
 library(knitr)
-```
+library(formattable)
+library(tidyverse)
+library(tidyr)
+library(wesanderson)
 
-```{r, echo=FALSE}
 theme_set(theme_minimal())
 ```
 
-```{r, echo = FALSE}
+
+```{r functions}
 # prediction_summary function
 prediction_summary_data <- function(y, yrep, prob_inner = 0.5, prob_outer = 0.95){
   # Calculate summary statistics of simulated 
@@ -183,53 +199,65 @@ prediction_summary <- function(y, yrep, prob_inner = 0.5, prob_outer = 0.95){
 }
 ```
 
-
-To illustrate Pseudo-BMA in practice, we've chosen the famous candy dataset from the `fivethirtyeight` package:
-
-```{r}
+```{r include=FALSE}
 candy <- fivethirtyeight::candy_rankings
-names(candy)
+pal <- wes_palette("Darjeeling1", 20, type = "continuous")
+pal
 ```
 
-### Exploratory EDA
+### Data 
 
-Plotting the top 10 candies by win percentage
+To illustrate Pseudo-BMA in practice, we've chosen the famous candy dataset from the `fivethirtyeight` package. This dataset was generated by pitting 86 Halloween candies against each other, and letting a crowd vote on the winner. In the end, 8371 IP addresses voted on 269000 randomly generated pairs of candy. The win percentages for each candy was then recorded, along with some additional data. The variables included in the dataset are defined below. 
+
+
+| Variable | Definition |
+|-----------|-----------|
+|`competitorname` | The name of the candy|
+|True/False variables|
+|`chocolate` | Does it contain chocolate?|
+|`fruity` | Is it fruit flavored?|
+|`caramel` | Is there caramel in the candy? |
+|`peanutyalmondy` | Does it contain any of the following: peanuts, peanut butter, or almonds?|
+| `nougat` | Does it contain nougat?|
+|`crispedricewafer` | Does it contain any of the following: crisped rice, wafers, or a cookie component?|
+|`hard` | Is it a hard candy?|
+|`bar` | Is it a candy bar?| 
+|`pluribus`| Is it one of many candies in a bag or box?|
+|Continuous variables|
+|`sugarpercent` | The percentile of sugar it falls under within the data set |
+|`pricepercent` | The unit price percentile compared to the rest of the set |
+|`winpercent`| The overall win percentage according to the 269,000 matchups |
+
+
+
+### Visual exploration and analysis
+
+We will be modeling the effect of the above variables on the win percentage in order to illustrate Pseduo-BMA. Before moving into the modeling process, however, it is helpful to explore the data and build intuition about what results we might expect. Below, the top 20 candies by win percentage are plotted.
+
 ```{r}
 candy %>%
   head(20) %>% 
   ggplot() +
-  geom_col(aes(y = reorder(competitorname, winpercent), x = winpercent)) +
-  labs(x = "Percent of Head to Heads Won", y = NULL, title = "Top 20 Candies") 
+  geom_col(aes(y = reorder(competitorname, winpercent), x = winpercent, fill=competitorname)) +
+  labs(x = "Percent of Head to Heads Won", y = NULL, title = "Top 20 Candies") +
+  scale_fill_manual(values = pal) +
+  theme(legend.position = "none") 
+  
 ```
+3 Musketeers and 100 Grand are a closely-matched top two. Is the name alone responsible for their success, due to brand recognition, loyalty, or some unique component? Or, is there some other variable driving their success - for example type, sugar content, or price? We first investigate the effect of type. Below is a plot of how many candies are each type, followed by the win percentage for each type of candy. 
 
-Plot how many candies are each type
 ```{r}
 candy %>% 
   summarise_if(is.logical, sum) %>% 
   pivot_longer(1:ncol(.), names_to = "type", values_to = "count") %>%
   mutate(type_clean = c("Chocolate", "Fruity", "Caramel", "Peanuty or Almondy", "Nougat", "Crisped Rice Wafer", "Hard", "Bar", "Several Candies in One Bag")) %>% 
-  ggplot(aes(y = reorder(type_clean, count), x = count)) +
+  ggplot(aes(y = reorder(type_clean, count), x = count, fill=type_clean)) +
   geom_col() +
-  labs(y = NULL, x = NULL, title = "Number of Candies with each Attribute")
+  labs(y = NULL, x = NULL, title = "Number of Candies with each Attribute") +
+  scale_fill_manual(values = pal) +
+  theme(legend.position = "none")
 ```
 
-Plotting Price and Sugar Content vs Win Rate
-```{r}
-winbycost <- candy %>% 
-  ggplot(aes(x = pricepercent, y = winpercent)) +
-  geom_jitter() +
-  labs(x = "Relative Price", y = "Percent of Head to Heads Won", title = "Price versus Win Rate")
-
-winbysugar <- candy %>% 
-  ggplot(aes(x = sugarpercent, y = winpercent)) +
-  geom_jitter() +
-  labs(x = "Sugar Content (Percent)", y = "Percent of Head to Heads Won", title = "Sugar Content versus Win Rate") +
-  ylim(0, 100)
-
-grid.arrange(winbycost, winbysugar, ncol = 2)
-```
-
-Win percent for each candy type:
 ```{r}
 candy %>% 
   select(winpercent, 2:10) %>%
@@ -239,16 +267,46 @@ candy %>%
   group_by(type) %>% 
   mutate(mean_win = mean(winpercent)) %>% 
   ungroup() %>% 
-  ggplot(aes(x = winpercent, y = reorder(type, mean_win), height = stat(density))) + 
+  ggplot(aes(x = winpercent, y = reorder(type, mean_win), fill=type, height = stat(density))) + 
   geom_density_ridges(stat = "binline", bins = 20, scale = 0.95, draw_baseline = FALSE) +
   labs(x = "Percent of Head to Heads Won", y = NULL, title = "Candy Type by Win Percent") + 
-  scale_y_discrete(labels = rev(c("Crisped Rice Wafer", "Peanuty or Almondy", "Bar", "Chocolate", "Nougat", "Caramel", "Several Candies in One Bag", "Fruity", "Hard")))
+  scale_y_discrete(labels = rev(c("Crisped Rice Wafer", "Peanuty or Almondy", "Bar", "Chocolate", "Nougat", "Caramel", "Several Candies in One Bag", "Fruity", "Hard"))) +
+  scale_fill_manual(values = pal) +
+  theme(legend.position = "none")
 ```
 
-### Model Creation and Assessment
+We can see that having several candies in each bag, being fruity, and being chocolate are the most common characteristics. However, it appears that these are not necessarily the most popular. While popularity is not clearly stratified by type, in general peanuty or almondy candy and crisped rice or wafer candy seem to be at the top, while hard candy and fruity candy lean more towards the bottom. As type of candy is not obviously a significant predictor, we next explore the effect of sugar content on the win percentage, plotted below. 
+
+```{r}
+candy %>% 
+  ggplot(aes(x = sugarpercent, y = winpercent)) +
+  geom_jitter() +
+  labs(x = "Sugar Content (Percent)", y = "Percent of Head to Heads Won", title = "Sugar Content versus Win Rate") +
+  ylim(0, 100) +
+  scale_fill_manual(values = pal) +
+  theme(legend.position = "none")
+
+```
+
+Once again, there is not an obvious relationship between the sugar content and the win percentage. This means that we would not expect sugar content to be an important predictor in the best model - even if it is statistically significant, it will likely not be practically significant. 
+
+Finally, we look at how the price affects the win percentage.
+
+```{r}
+candy %>% 
+  ggplot(aes(x = pricepercent, y = winpercent)) +
+  geom_jitter() +
+  labs(x = "Relative Price", y = "Percent of Head to Heads Won", title = "Price versus Win Rate") +
+  scale_fill_manual(values = pal) +
+  theme(legend.position = "none")
+```
+
+As before, relative price is not a clear predictor of success. However, this may be due to how the data was collected - remember that this data shows people's favorite candy, not people's most commonly purchased candy. Price may be an important predictor of what they buy, but not what they prefer. 
 
 
-We start by creating regular stan models. Each model differs by the number of variables considered, in this case. These posterior distributions are approximated via MCMC. 
+## Model Creation and Assessment
+
+Now that we have built some intutition of what variables affect win percentage, it is time to officially run some models. We start by creating four regular stan models. In this case, each model differs by the number of variables considered. Model 1 uses only sugar content as a predictor variable, Model 2 looks at both sugar content and relative price, Model 3 includes each of the binary type variables and no continuous variables, while Model 4 uses all of the possible explanatory variables. The posterior distributions for each of these models are approximated via Monte Carlo Markov Chains (MCMC). 
 
 ```{r, cache = TRUE}
 set.seed(454)
@@ -274,9 +332,10 @@ model_list <- list(model_1 = model_1, model_2 = model_2, model_3 = model_3, mode
 
 
 
-#### Model Stability
+### Model Stability
 
-Once we have the models, we can then use tools such as trace plots and density overlays to assess the stability of our models. The trace plot and overlay for model 1 is shown below: 
+Now that we have the models, we can use tools such as trace plots and density overlays to assess their stability. The trace plot and overlay for model 1 is shown below: 
+
 ```{r, cache = TRUE}
 mcmc_trace(model_1)
 mcmc_dens_overlay(model_1)
@@ -285,7 +344,8 @@ mcmc_dens_overlay(model_1)
 
 While the trace plots show a fairly wide band, indicating some variation in the values used for each variable, no flatlining is present. We can also see that all models returned similar distributions for each of the parameters in model 1 (Intercept, sugarpercent, sigma). Similar behavior is seen in all the trace plots and density overlays for each model (see Appendix), thus the models appear usable. 
 
-#### Model Correctness
+
+### Model Correctness
 
 To assess if the structure of our models is reasonable, we can use `pp_check()` to compare simulated samples to the real values. 
 
@@ -295,57 +355,98 @@ grid.arrange(pp_check(model_1) + labs(title = 'Model 1'), pp_check(model_2) + la
 
 ```
 
-All models seem to roughly fit the distribution of the data. There are a few noticeable outliers in every model, and each model appears to have a higher peak than the distribution of the actual data, but these are not considered wrong models. 
+All models seem to roughly fit the distribution of the data. There are a few noticeable outliers in every model, and each model appears to have a higher peak than the distribution of the actual data, but in general we do not consider these wrong models. 
 
+### Model Coefficients 
 
-As we are satsified, we can proceed with these models. Here are the coefficients: 
+As we are satsified, we can proceed with these models. The coefficients are printed below for Models 1-4, respectively. 
 
 ```{r}
-model_1$coefficients
-model_2$coefficients
-model_3$coefficients
-model_4$coefficients
+mod1 <- as.data.frame(model_1$coefficients)
+formattable(mod1, align=c("l"), col.names=c("Coefficient"), title="Model 1")
+
+mod2 <- as.data.frame(model_2$coefficients)
+formattable(mod2, align=c("l"), col.names=c("Coefficient"))
+
+mod3 <- as.data.frame(model_3$coefficients)
+formattable(mod3, align=c("l"), col.names=c("Coefficient"))
+
+mod4 <- as.data.frame(model_4$coefficients)
+formattable(mod4, align=c("l"), col.names=c("Coefficient"))
+
 ```
 
 
 ### Model Evaluations using ELPD
 
-Once the models are calculated, we calcuate Leave One Out expected log point predictive densities (ELPD LOO) for each model. 
+Once the models are calculated, we calcuate Leave One Out expected log point predictive densities (ELPD LOO) for each model. These are shown below. 
 
-
-Calculate LOO-IC
-```{r, cache = TRUE}
+```{r, cache = TRUE, results=FALSE}
 (loo_1 <- loo(model_1))$estimates
 (loo_2 <- loo(model_2))$estimates
 (loo_3 <- loo(model_3))$estimates
 (loo_4 <- loo(model_4))$estimates
+
 lpd_point <- cbind(
   loo_1$pointwise[,"elpd_loo"], 
   loo_2$pointwise[,"elpd_loo"],
   loo_3$pointwise[,"elpd_loo"],
   loo_4$pointwise[,"elpd_loo"]
 )
+
+lpd <- as.data.frame(lpd_point)
+
+
+elpd_1 <- loo(model_1)$estimates[3]
+elpd_2 <- loo(model_2)$estimates[3]
+elpd_3 <- loo(model_3)$estimates[3]
+elpd_4 <- loo(model_4)$estimates[3]
+
+elpds <- cbind(elpd_1, elpd_2, elpd_3, elpd_4)
+
+elpds <- as.data.frame(elpds)
+```
+
+```{r}
+formattable(lpd, align=c("l"), col.names=c("Model 1", "Model 2", "Model 3", "Model 4"))
+formattable(elpds, align=c("l"), col.names=c("Model 1", "Model 2", "Model 3", "Model 4"))
+
 ```
 
 For comparison, we'll also display the WAIC for each model.
-```{r}
+```{r results=FALSE}
 waic(model_1)
 waic(model_2)
 waic(model_3)
 waic(model_4)
+
+waic_1 <- waic(model_1)$estimates[3]
+waic_2 <- waic(model_2)$estimates[3]
+waic_3 <- waic(model_3)$estimates[3]
+waic_4 <- waic(model_4)$estimates[3]
+
+waics <- as.data.frame(cbind(waic_1, waic_2, waic_3, waic_4))
+
+```
+
+```{r}
+
+formattable(waics,align=c("l"), col.names=c("Model 1", "Model 2", "Model 3", "Model 4"))
 ```
 
 Notably, the calculation of WAIC is unstable for these models, and shouldn't be trusted. 
 
-With the ELPD calculations, the models are able to be ranked in order of their contribution, as a percentage. As shown, `model3` has the highest weight with 0.534, followed by `model4`. By this metric, `model3` appears to be the best model from the set of 4 we created above.  
+With the ELPD calculations, the models are able to be ranked in order of their contribution, as a percentage. As shown, Model 3 has the highest weight with 0.534, followed by Model 4. By this metric, Model 3 appears to be the best model from the set of 4 we created above.  
 
 ```{r}
 (weights <- pseudobma_weights(lpd_point))
+
+
 ```
 
 
 
-### Predictions 
+## Predictions 
 
 A new type of candy is created (`new_candy`), which is turned into a dataframe for prediction. A table of predictions for all models is then created, titled `predictions`. 
 
@@ -374,24 +475,30 @@ sampled_pred <- predictions %>%  #calculating sample predictions for each model
 predictions %>%
   bind_rows() %>% 
   ggplot(aes(x = winpercent_new, fill = as.character(model), color = as.character(model))) +
-  geom_density_ridges(alpha = 0.2, aes(y = reorder(as.character(model), -model))) + labs(title = 'Posterior Predictive Distributions for The Four Models', y = "Model", x = "Predicted Percent of Wins") +
+  geom_density_ridges(alpha = 0.6, aes(y = reorder(as.character(model), -model))) + labs(title = 'Posterior Predictive Distributions for The Four Models', y = "Model", x = "Predicted Percent of Wins")  +
+  scale_fill_manual(values = pal) +
+  scale_color_manual(values = pal) + 
   theme(legend.position = "none")
 ```
 
 
-Unsurprisingly, the different models provided slightly different predictions. The $MAP$ 'winpercent' for `model`, `model2` appear to be closer to 45-50%, while the `model3`, `model4` show a  'winpercent' of closer to 80%. 
+Unsurprisingly, the different models provided slightly different predictions. The $MAP$ `winpercent` for Model 1, Model 2 appear to be closer to 45-50%, while the Model 3, Model 4 show a  'winpercent' of closer to 80%. 
 
 ```{r}
 sampled_pred %>% 
-  ggplot(aes(x = winpercent_new, fill = model, color = model)) +
-  geom_histogram(alpha = 0.9, 
+  ggplot(aes(x = winpercent_new, fill = model, color=model)) +
+  geom_histogram(alpha = 0.5, 
                  position = position_stack(),
                  binwidth = 5, 
                  boundary = 0) +
-  labs(x = "Predicted Percent of Wins", y = "Draws", fill = "Model", color = "Model")
+  facet_wrap(~model)+
+  labs(x = "Predicted Percent of Wins", y = "Draws", fill = "Model", color = "Model") +
+  scale_fill_manual(values = pal) +
+  scale_color_manual(values = pal) + 
+  theme(legend.position = "none")
 ```
 
-As a more visual demonstration of the weights, the contribution of each model is evident in the predictive distribution, with model 3 contributing the largest, followed by model 4. Thus, it is not surprising that the pseudo-BMA model also has an $MAP$ of around 80%, given the dominance of `model3` in the weighted averaging. 
+As a more visual demonstration of the weights, the contribution of each model is evident in the predictive distribution, with model 3 contributing the largest, followed by model 4. Thus, it is not surprising that the pseudo-BMA model also has an $MAP$ of around 80%, given the dominance of Model 3 in the weighted averaging. 
 
 
 ### Pseudo-BMA vs. Single Model Performance
@@ -480,9 +587,9 @@ yrep = full_pred_mat[,1:20], prob_outer = 0.95) +
   coord_flip()
 ```
 
-Once again, unsurprisingly, the mean predictions for all 17 candies for `model3` and the pseudo-BMA weighted average are fairly close. However, evident for *Baby Ruth, Nestle Butterfinger, and Reese's Peanut Butter Cup* the pseudo-BMA weighted average model is slightly closer to the actual win percentage. In other cases, like *Sour Patch Kids, Reese's Miniatures, and Air Heads*, model 3 appears to have better predictions. 
+Once again, unsurprisingly, the mean predictions for all 17 candies for Model 3 and the pseudo-BMA weighted average are fairly close. However, evident for *Baby Ruth, Nestle Butterfinger, and Reese's Peanut Butter Cup* the pseudo-BMA weighted average model is slightly closer to the actual win percentage. In other cases, like *Sour Patch Kids, Reese's Miniatures, and Air Heads*, model 3 appears to have better predictions. 
 
-#### Numerical Comparison of Model Strength
+### Numerical Comparison of Model Strength
 
 ```{r}
 
@@ -503,17 +610,17 @@ While hard to tell which is better visually, `prediction_summary()` plainly indi
 
 
 
-## Conclusion(?)
+## Conclusion
 
 
 The concept of taking a weighted average of the predictions from multiple models is not a new technique, given the obvious benefits of increased flexibility and robustness to predictions. However, weighted averages are predominantly seen in Frequentist approaches to modelling, and less so in the Bayesian approach. Bayesian Model Averaging, and more specifically Pseudo-BMA, is a more computationally efficient method to evaluate each model's predictive distribution, assigning ELPD scores for each model. ELPD, as fractional indication of model weight, allows for predictions from each model to be combined in a manner that provides the optimal predictive distribution, a Pseudo-BMA model. As shown by the candy dataset, Pseudo-BMA naturally outperforms the best single-model calculated, and could only improve with even more models tested. 
 
 
 
-## Appendix Section:
+## Appendix
 
 
-#### Overlay, Trace Plots for models 2,3,4:
+### Overlay, Trace Plots for models 2,3,4:
 ```{r, cache = TRUE}
 mcmc_trace(model_2)
 mcmc_dens_overlay(model_2)
@@ -524,7 +631,7 @@ mcmc_dens_overlay(model_4)
 ```
 
 
-#### PPC Interval Graphs for models 1,2,4:
+### PPC Interval Graphs for models 1,2,4:
 Models graphed in that order:
 
 ```{r}
