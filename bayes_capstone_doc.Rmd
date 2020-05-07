@@ -33,7 +33,7 @@ Given multiple models, you can estimate the probability a model $M$ minimizes in
 p_k = \frac{exp\left(-\frac{1}{2}(AIC_{min} - AIC_k)\right)}{\sum_{i=1}^K exp\left(-\frac{1}{2}(AIC_{min} - AIC_k)\right)}
 \]
 
-AIC fits well in the freqentist frame. The likelihood component is assumed to come from the maximum likelihood estimates of paramters, which Bayesian methods do not select for, and point estimates for parameters are used, instead of using the full posterior distribution.
+AIC fits well in the freqentist frame. The likelihood component is assumed to come from the maximum likelihood estimates of paramters, which Bayesian methods do not select for, and point estimates for parameters are used, instead of using the full posterior distribution. [@AICintro]
 
 #### Bayesian Information Criterion
 
@@ -179,7 +179,7 @@ prediction_summary <- function(y, yrep, prob_inner = 0.5, prob_outer = 0.95){
 }
 ```
 
-```{r}
+```{r include=FALSE}
 candy <- fivethirtyeight::candy_rankings
 pal <- wes_palette("Darjeeling1", 20, type = "continuous")
 pal
@@ -392,7 +392,6 @@ elpds <- as.data.frame(elpds)
 ```
 
 ```{r}
-formattable(lpd, align=c("l"), col.names=c("Model 1", "Model 2", "Model 3", "Model 4"))
 formattable(elpds, align=c("l"), col.names=c("Model 1", "Model 2", "Model 3", "Model 4"))
 
 ```
