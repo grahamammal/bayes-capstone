@@ -114,6 +114,8 @@ These model probabilities can be used in a variety of ways. For example, BMA all
 
 ## Example context
 
+We demonstrate these concepts using a worked example. 
+
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning=FALSE, error=FALSE)
@@ -230,6 +232,8 @@ candy %>%
   theme(legend.position = "none") 
   
 ```
+
+
 3 Musketeers and 100 Grand are a closely-matched top two. Is the name alone responsible for their success, due to brand recognition, loyalty, or some unique component? Or, is there some other variable driving their success - for example type, sugar content, or price? We first investigate the effect of type. Below is a plot of how many candies are each type, followed by the win percentage for each type of candy. 
 
 ```{r}
@@ -590,7 +594,7 @@ prediction_summary(y = candy$winpercent,
 kable()
 ```
 
-While hard to tell which is better visually, `prediction_summary()` plainly indicates the better model. Due to the use of a weighted average, Pseudo BMA is evidently more accurate than model 3. On average, pseudo-BMA was closer to the actual win percentage of a candy than model 3, (MAE), and 57.6% of the candy's win percentage is within the middle 95% of pseudo-BMA's predictive distribution. While the pseudo-BMA predictions are better than the individual models, far more of the candies than should be are outside of the 95% intervals. This means the model vastly overestimates its accuracy, and perhaps another model entirely should be used. 
+While hard to tell which is better visually, `prediction_summary()` plainly indicates the better model. Due to the use of a weighted average, Pseudo BMA is evidently more accurate than model 3. On average, pseudo-BMA was closer to the actual win percentage of a candy than model 3, (MAE), and 56.4% of the candy's win percentage is within the middle 95% of pseudo-BMA's predictive distribution. While the pseudo-BMA predictions are better than the individual models, far more of the candies than should be are outside of the 95% intervals. This means the model vastly overestimates its accuracy, and perhaps another model entirely should be used. 
 
 
 
@@ -631,4 +635,4 @@ candy_plotter(model_4)
 ```
 
 
-<div class="tocify-extend-page" data-unique="tocify-extend-page" style="height: 0;"></div>
+## Works Cited
