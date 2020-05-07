@@ -76,8 +76,6 @@ Then, the posterior probability of model specification $M_k$ is $$\pi(M_k | Y) =
 
 Traditional BMA is not without issues. For example, changing priors from one vague prior to another can significantly impact posterior model probablities. In addition, calculating model likelihoods becomes extremely difficult for anything but the simplest models.
 
-As a result of these issues, a method called *Pseudo-BMA* was created. This has the same core idea as BMA, but instead of calculating model likelhoods, something called Leave-One-Out cross validation  (LOO-CV) is used.
-
 As a result of these issues, a method called *Pseudo-BMA* was created. This has the same core idea as BMA, but instead of calculating model likelhoods, something called Leave-One-Out cross validation  (LOO-CV) is used [@YaoVehtari]. 
 
 Similar to the information criterion, LOO-CV estimates how good a model is at predicting out of sample data. To do this, it fits the model on all but one data points, then checks how well it predicts the missing data point. This is then repeated for every data point in the sample. 
@@ -183,13 +181,11 @@ prediction_summary <- function(y, yrep, prob_inner = 0.5, prob_outer = 0.95){
 }
 ```
 
-```{r include=FALSE}
+```{r}
 candy <- fivethirtyeight::candy_rankings
 pal <- wes_palette("Darjeeling1", 20, type = "continuous")
-pal
 
 pal2 <- wes_palette("Darjeeling1", 4, type = "discrete")
-pal2
 
 ```
 
@@ -424,7 +420,7 @@ formattable(waics,align=c("l"), col.names=c("Model 1", "Model 2", "Model 3", "Mo
 
 Notably, the calculation of WAIC is unstable for these models, and shouldn't be trusted. 
 
-With the ELPD calculations, the models are able to be ranked in order of their contribution, as a percentage. As shown, Model 3 has the highest weight with 0.534, followed by Model 4. By this metric, Model 3 appears to be the best model from the set of 4 we created above.  
+With the ELPD calculations, the models are able to be ranked in order of their contribution, as a percentage. As shown, Model 3 has the highest weight with 0.546, followed by Model 4. By this metric, Model 3 appears to be the best model from the set of 4 we created above.  
 
 ```{r}
 (weights <- pseudobma_weights(lpd_point))
